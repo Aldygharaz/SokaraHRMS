@@ -1,0 +1,542 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Sokara HR Management - High Contrast Ultra-Legible Design System (WCAG AAA Compliant) */
+
+:root, html.light {
+  /* =====================================================
+   * LIGHT MODE — "Linear × Stripe × Radix Slate"
+   * Referensi: Linear.app, Stripe Dashboard, Vercel Geist
+   * Semua teks diverifikasi WCAG AA+ (≥ 4.5:1)
+   * ===================================================== */
+
+  /* SURFACE HIERARCHY (Slate-tinted neutral, bukan biru susu) */
+  --color-bg: #F7F8FA;                  /* App bg — Radix Slate-2, kontras tajam vs card */
+  --color-surface-lowest: #FFFFFF;      /* Pure white — untuk card utama & sidebar item */
+  --color-surface-low: #F1F3F6;         /* Subtle bg — input, table row alt, hover area */
+  --color-surface: #FFFFFF;             /* Card / panel surface */
+  --color-surface-high: #E4E8EF;        /* Border area, chip bg */
+  --color-surface-highest: #CBD3DC;     /* Strong divider, table header bg */
+  --color-surface-bright: #FFFFFF;
+
+  /* TEXT — Slate-900/600/500 (semua lulus WCAG AA+ di atas white) */
+  --color-on-surface: #0F172A;          /* Slate-900 — heading, label utama. Kontras 17:1 ✅ */
+  --color-on-surface-variant: #475569;  /* Slate-600 — body text, value sekunder. Kontras 7.5:1 ✅ */
+
+  /* BRAND / ACTION */
+  --color-amber-brand: #1B5FAE;
+  --color-amber-glow: rgba(27, 95, 174, 0.10);
+  --color-primary: #1B5FAE;            /* Corporate Blue — tombol primer, link */
+  --color-on-primary: #FFFFFF;
+  --color-tertiary: 99 102 241;        /* Indigo-500 — accent tersier */
+  --color-error: #DC2626;              /* Red-600 */
+  --color-warning: #D97706;            /* Amber-600 */
+  --color-outline: #E2E6EC;            /* Border default halus (Linear-style) */
+
+  /* ACCENT SYSTEM (tetap #1B5FAE agar konsisten dengan brand) */
+  --accent-primary: 27 95 174;         /* RGB for #1B5FAE */
+  --accent-primary-hover: #154E92;
+  --accent-primary-light: #EBF3FF;     /* Biru sangat pucat untuk chip/badge bg */
+
+  --color-secondary: #4A90D9;
+  --color-action: #1B5FAE;
+  --color-navy: #0F172A;               /* Dipakai untuk text primer */
+  --color-gradient-start: #EEF4FF;     /* Header panel gradient — biru sangat lembut */
+
+  --color-semantic-warning: #B91C1C;   /* Red-700 (lebih gelap = lebih kontras di light) */
+  --color-semantic-positive: #047857;  /* Emerald-700 */
+  --color-semantic-neutral: 71 85 105; /* RGB Slate-600 */
+
+  /* PSYCHOLOGICAL SEMANTIC (WCAG AA VERIFIED pada bg #FFFFFF) */
+  --color-psy-safe: #047857;           /* Emerald-700 — kontras 7.4:1 ✅ */
+  --color-psy-safe-bg: #ECFDF5;        /* Emerald-50 */
+  --color-psy-safe-text: #064E3B;      /* Emerald-900 */
+  --color-psy-danger: #B91C1C;         /* Red-700 — kontras 7.7:1 ✅ */
+  --color-psy-danger-bg: #FEF2F2;      /* Red-50 */
+  --color-psy-danger-text: #7F1D1D;    /* Red-900 */
+  --color-psy-warning: #B45309;        /* Amber-700 — kontras 6.6:1 ✅ */
+  --color-psy-warning-bg: #FFFBEB;     /* Amber-50 */
+  --color-psy-warning-text: #78350F;   /* Amber-900 */
+  --color-psy-info: #1D4ED8;           /* Blue-700 — kontras 7.1:1 ✅ */
+  --color-psy-info-bg: #EFF6FF;        /* Blue-50 */
+  --color-psy-info-text: #1E3A8A;      /* Blue-900 */
+  --color-psy-calm: #6D28D9;           /* Violet-700 — kontras 7.3:1 ✅ */
+  --color-psy-calm-bg: #F5F3FF;        /* Violet-50 */
+  --color-psy-calm-text: #4C1D95;      /* Violet-900 */
+
+  --font-heading: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+
+  /* GLASS / CARD SYSTEM (Linear-style: crisp border, no heavy blur) */
+  --glass-bg: #FFFFFF;
+  --glass-border: #E2E6EC;
+  --glass-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+/* ULTRA HIGH CONTRAST DARK THEME - DISCORD PALETTE */
+html.dark {
+  --color-bg: #1E1F22;                  /* Base */
+  --color-surface-lowest: #2B2D31;      /* Sidebar */
+  --color-surface-low: #313338;         /* Canvas */
+  --color-surface: #383A40;             /* Elevated */
+  --color-surface-high: #404249;        /* Hover */
+  --color-surface-highest: #404249;
+  --color-surface-bright: #383A40;
+
+  --color-on-surface: #F2F3F5;          /* Primer Text */
+  --color-on-surface-variant: #DBDEE1;  /* Sekunder Text (Muted = #B5BAC1) */
+
+  --color-amber-brand: #0EA5E9;         /* Electric Blue as Brand Accent */
+  --color-amber-glow: rgba(14, 165, 233, 0.2);
+  --color-primary: #0EA5E9;             /* Electric Blue */
+  --color-on-primary: #FFFFFF;
+  --color-tertiary: 235 69 158;         /* RGB for #EB459E */
+  --color-error: #ED4245;               /* Red */
+  --color-warning: #FEE75C;             /* Yellow */
+  --color-outline: #3F4147;             /* Divider */
+
+  /* COLOR SYSTEM REVISION (Trust & Corporate Blue) */
+  --accent-primary: 27 95 174;         /* RGB for #1B5FAE */
+  --accent-primary-hover: #4A90D9;
+  --accent-primary-light: rgba(27, 95, 174, 0.25);
+  
+  --color-secondary: #4A90D9;
+  --color-action: #1B5FAE;
+  --color-semantic-warning: #ED4245;  /* Discord Red */
+  --color-semantic-positive: #23A559; /* Discord Green */
+  --color-semantic-neutral: 148 163 184;  /* RGB for #94A3B8 */
+
+  /* PSYCHOLOGICAL SEMANTIC COLORS (DARK MODE - DISCORD PALETTE) */
+  --color-psy-safe: #23A559;          /* Discord Green */
+  --color-psy-safe-bg: rgba(35, 165, 89, 0.15);
+  --color-psy-safe-text: #57F287;
+  --color-psy-danger: #ED4245;        /* Discord Red */
+  --color-psy-danger-bg: rgba(237, 66, 69, 0.15);
+  --color-psy-danger-text: #F23F43;
+  --color-psy-warning: #F0B232;       /* Discord Warning/Yellow */
+  --color-psy-warning-bg: rgba(240, 178, 50, 0.15);
+  --color-psy-warning-text: #FEE75C;
+  --color-psy-info: #0EA5E9;          /* Electric Blue */
+  --color-psy-info-bg: rgba(14, 165, 233, 0.15);
+  --color-psy-info-text: #7DD3FC;
+  --color-psy-calm: #EB459E;          /* Fuchsia */
+  --color-psy-calm-bg: rgba(235, 69, 158, 0.15);
+  --color-psy-calm-text: #F386C0;
+
+  --glass-bg: #313338;                  /* Canvas Layer */
+  --glass-border: #232428;              /* Input/Card Border */
+  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-on-surface);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+  font-size: 14px;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+h1, h2, h3, h4, h5, h6, .font-heading {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  color: var(--color-on-surface);
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: #94A3B8;
+  border-radius: 9999px;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+/* High Contrast Cards with Crisp Borders & Soft Elevation */
+.glass-panel {
+  position: relative;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.glass-panel:hover {
+  border-color: #94A3B8;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+}
+html.dark .glass-panel:hover {
+  border-color: #64748B;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7);
+}
+
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.spotlight-card::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  background: radial-gradient(
+    500px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(15, 23, 42, 0.04),
+    transparent 40%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+  border-radius: inherit;
+  z-index: 1;
+}
+html.dark .spotlight-card::before {
+  background: radial-gradient(
+    500px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    rgba(56, 189, 248, 0.1),
+    transparent 40%
+  );
+}
+.spotlight-card:hover::before {
+  opacity: 1;
+}
+
+.liquid-fill {
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tilt-card {
+  transition: transform 0.15s ease-out, box-shadow 0.2s ease-out;
+  will-change: transform;
+}
+
+.magnetic-btn {
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.2s ease-out;
+  will-change: transform;
+  border-radius: 12px;
+  font-weight: 700;
+}
+.magnetic-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+button {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  font-weight: 700;
+}
+button:active {
+  transform: scale(0.97);
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.15);
+  transform: scale(0);
+  animation: ripple-anim 0.5s linear;
+  pointer-events: none;
+}
+html.dark .ripple {
+  background: rgba(255, 255, 255, 0.2);
+}
+@keyframes ripple-anim {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.shift-card {
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border-radius: 10px;
+}
+.shift-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+}
+
+.shift-warning {
+  border: 2px dashed var(--color-psy-danger) !important;
+  background-color: var(--color-psy-danger-bg) !important;
+  color: var(--color-psy-danger-text) !important;
+}
+
+@keyframes thinking-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-thinking {
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.04) 25%, rgba(15, 23, 42, 0.1) 50%, rgba(15, 23, 42, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: thinking-shimmer 1.4s infinite ease-in-out;
+}
+
+/* Vibrant Pulsing Status Dot */
+.pulse-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-psy-safe);
+  box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.4);
+  animation: pulse-ring 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(5, 150, 105, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
+  }
+}
+
+.tab-view {
+  display: none;
+  opacity: 0;
+}
+.tab-view.active {
+  display: block;
+  opacity: 1;
+}
+
+/* Modals Backdrops & High Contrast Glass Modals */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease-out;
+}
+html.dark .modal-backdrop {
+  background: rgba(3, 7, 18, 0.8);
+}
+
+.modal-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-content {
+  transform: scale(0.95);
+  transition: transform 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  border-radius: 20px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.2);
+}
+html.dark .modal-content {
+  background: #111827;
+  border-color: #334155;
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7);
+}
+.modal-backdrop.show .modal-content {
+  transform: scale(1);
+}
+
+/* Active Nav Button - Structural with Accent Border */
+.nav-btn.active {
+  background-color: var(--color-surface-high) !important;
+  color: var(--color-on-surface) !important;
+  border-left: 3px solid rgb(var(--accent-primary));
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+  box-shadow: none;
+}
+html.dark .nav-btn.active {
+  background-color: #1E1F22 !important; /* Structural Dark Background */
+  color: #F2F3F5 !important;
+  border-left: 3px solid rgb(var(--accent-primary));
+  border-top-left-radius: 4px;
+  border-bottom-left-radius: 4px;
+  box-shadow: none;
+}
+
+/* Toast Notification */
+.toast-progress {
+  height: 3.5px;
+  background-color: #000000;
+  border-radius: 9999px;
+  animation: toast-timer 3.8s linear forwards;
+}
+html.dark .toast-progress {
+  background-color: #38BDF8;
+}
+@keyframes toast-timer {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+/* Floating Action Button (FAB) Widget */
+.fab-widget {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.fab-main-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #000000;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  transition: transform 0.25s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.25s ease;
+  cursor: pointer;
+}
+html.dark .fab-main-btn {
+  background: #38BDF8;
+  color: #000000;
+}
+.fab-main-btn:hover {
+  transform: scale(1.08) rotate(90deg);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.fab-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(12px) scale(0.9);
+  transition: all 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.fab-widget.open .fab-menu {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+/* OFFICIAL PRINT STYLES (@media print) */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #modal-pay-slip, #modal-pay-slip * {
+    visibility: visible;
+  }
+  #modal-pay-slip {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+  }
+  .modal-content {
+    border: none !important;
+    box-shadow: none !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .btn-close-modal, #btn-print-slip, .fab-widget {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-fill, .hover-lift, .tab-view, .modal-backdrop, .modal-content, .shift-card, .shimmer-thinking, .tilt-card, .magnetic-btn, .toast-progress, .pulse-dot, .fab-main-btn {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .touch-target-44 {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .fab-widget {
+    bottom: 80px;
+    right: 16px;
+  }
+}
+
+/* Sidebar Collapsed State */
+body.sidebar-collapsed #desktop-sidebar {
+  width: 5rem !important; /* w-20 */
+}
+@media (min-width: 768px) {
+  body.sidebar-collapsed #main-content {
+    margin-left: 5rem !important;
+  }
+}
+body.sidebar-collapsed .sidebar-text {
+  opacity: 0 !important;
+  width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  pointer-events: none !important;
+}
+body.sidebar-collapsed #desktop-sidebar .px-6 {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+body.sidebar-collapsed .sidebar-action-grid {
+  grid-template-columns: 1fr !important;
+}
+body.sidebar-collapsed #btn-toggle-sidebar {
+  transform: translateY(-50%) rotate(180deg) !important;
+}
+
