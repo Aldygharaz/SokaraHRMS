@@ -5,7 +5,10 @@ import { toast } from 'sonner'
 import { useState } from 'react'
 
 export function Kudos() {
-  const { employees, activeEmployeeId, kudosList, addKudos } = useHRStore()
+  const employees = useHRStore(state => state.employees)
+  const activeEmployeeId = useHRStore(state => state.activeEmployeeId)
+  const kudosList = useHRStore(state => state.kudosList)
+  const addKudos = useHRStore(state => state.addKudos)
   const [recipient, setRecipient] = useState('')
   const [message, setMessage] = useState('')
   

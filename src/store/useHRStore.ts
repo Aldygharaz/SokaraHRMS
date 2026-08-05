@@ -94,6 +94,7 @@ interface HRState {
   injectSwapRequest: () => void
   updateTerRates: (rates: Record<string, number>) => void
   updateEmployeePayroll: (id: number, data: Partial<Employee>) => void
+  updateShift: (employeeId: number, dayIdx: number, shift: string) => void
 }
 
 const defaultEmployees: Employee[] = [
@@ -126,7 +127,9 @@ export const useHRStore = create<HRState>()(
         5: ['Sore', 'Pagi', 'Pagi', 'OFF', 'Sore', 'Sore', 'Pagi']
       },
       swapRequests: [
-        { id: 101, requester: 'Dimas Prasetyo', targetSlot: 'Sabtu (25 Jul) - Shift Pagi', dayIdx: 5, reason: 'Ada acara keluarga di sore hari', status: 'Menunggu Approval', stepperStep: 2, isConflict: true }
+        { id: 101, requester: 'Dimas Prasetyo', targetSlot: 'Sabtu (25 Jul) - Shift Pagi', dayIdx: 5, reason: 'Ada acara keluarga di sore hari', status: 'Menunggu Approval', stepperStep: 2, isConflict: true },
+        { id: 102, requester: 'Siti Rahma', targetSlot: 'Senin (20 Jul) - Cuti Tahunan', dayIdx: 0, reason: 'Kontrol kehamilan', status: 'Disetujui', stepperStep: 3, isConflict: false },
+        { id: 103, requester: 'Budi Santoso', targetSlot: 'Rabu (22 Jul) - Shift Sore', dayIdx: 2, reason: 'Tukar shift dengan Rian karena urusan mendadak', status: 'Ditolak', stepperStep: 3, isConflict: true }
       ],
       auditLogs: [
         { timestamp: '09:45 WIB', user: 'System AI', action: 'Shift Auto-Balance', detail: 'Seimbangkan shift malam Sabtu' }
@@ -135,12 +138,17 @@ export const useHRStore = create<HRState>()(
         { id: 1, employeeId: 1, title: 'Zero Keterlambatan', target: 0, current: 0, unit: 'kali', dueDate: 'Akhir Bulan' },
         { id: 2, employeeId: 1, title: 'Latte Art Positive Reviews', target: 20, current: 14, unit: 'reviews', dueDate: 'Akhir Bulan' },
         { id: 3, employeeId: 2, title: 'Akurasi Kasir 100%', target: 100, current: 99, unit: '%', dueDate: 'Akhir Bulan' },
-        { id: 4, employeeId: 4, title: 'Training Food Safety', target: 100, current: 45, unit: '%', dueDate: 'Akhir Bulan' }
+        { id: 4, employeeId: 3, title: 'Mentoring Junior Barista', target: 4, current: 2, unit: 'sesi', dueDate: 'Minggu Depan' },
+        { id: 5, employeeId: 4, title: 'Training Food Safety', target: 100, current: 45, unit: '%', dueDate: 'Akhir Bulan' },
+        { id: 6, employeeId: 5, title: 'Pelayanan Cepat < 3 Menit', target: 95, current: 88, unit: '%', dueDate: 'Akhir Bulan' }
       ],
       kudosList: [
         { id: 1, from: 1, to: 2, text: "Makasih banget udah back-up shift saya pas mendadak sakit kemarin! Penyelamat bgt kak! 🙏", type: "teamwork", date: "Hari ini" },
-        { id: 2, from: 3, to: 4, text: "Latte art makin rapi euy, customer meja 4 tadi sampai muji-muji. Pertahankan!", type: "skill", date: "Kemarin" },
-        { id: 3, from: 1, to: 5, text: "Closing super cepat & rapi malam ini. Besok pagi yang buka jadi enak banget.", type: "operational", date: "2 Hari lalu" }
+        { id: 2, from: 3, to: 4, text: "Latte art makin rapi euy, customer meja 4 tadi sampai muji-muji. Pertahankan! ☕", type: "skill", date: "Kemarin" },
+        { id: 3, from: 1, to: 5, text: "Closing super cepat & rapi malam ini. Besok pagi yang buka jadi enak banget. ✨", type: "operational", date: "2 Hari lalu" },
+        { id: 4, from: 2, to: 1, text: "Komunikasi ke tim sangat jelas, handling komplain pelanggan tadi siang juga pro banget! 🌟", type: "leadership", date: "3 Hari lalu" },
+        { id: 5, from: 4, to: 3, text: "Makasih udah ngajarin teknik kalibrasi grinder mesin espresso pagi tadi! 🎓", type: "mentorship", date: "4 Hari lalu" },
+        { id: 6, from: 5, to: 2, text: "Balance kasir 100% akurat minggu ini, ga ada selisih sama sekali. Keren! 💸", type: "accuracy", date: "Minggu lalu" }
       ],
 
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -236,6 +244,12 @@ export const useHRStore = create<HRState>()(
       updateEmployeePayroll: (id, data) => set((state) => ({
         employees: state.employees.map(emp => emp.id === id ? { ...emp, ...data } : emp)
       })),
+      updateShift: (employeeId, dayIdx, shift) => set((state) => {
+        const newShifts = { ...state.shifts }
+        if (!newShifts[employeeId]) newShifts[employeeId] = Array(7).fill('OFF')
+        newShifts[employeeId][dayIdx] = shift
+        return { shifts: newShifts }
+      }),
       resetStore: () => set({
         activeTab: 'dashboard',
         activeRole: 'manager',
@@ -255,7 +269,9 @@ export const useHRStore = create<HRState>()(
           5: ['Sore', 'Pagi', 'Pagi', 'OFF', 'Sore', 'Sore', 'Pagi']
         },
         swapRequests: [
-          { id: 101, requester: 'Dimas Prasetyo', targetSlot: 'Sabtu (25 Jul) - Shift Pagi', dayIdx: 5, reason: 'Ada acara keluarga di sore hari', status: 'Menunggu Approval', stepperStep: 2, isConflict: true }
+          { id: 101, requester: 'Dimas Prasetyo', targetSlot: 'Sabtu (25 Jul) - Shift Pagi', dayIdx: 5, reason: 'Ada acara keluarga di sore hari', status: 'Menunggu Approval', stepperStep: 2, isConflict: true },
+          { id: 102, requester: 'Siti Rahma', targetSlot: 'Senin (20 Jul) - Cuti Tahunan', dayIdx: 0, reason: 'Kontrol kehamilan', status: 'Disetujui', stepperStep: 3, isConflict: false },
+          { id: 103, requester: 'Budi Santoso', targetSlot: 'Rabu (22 Jul) - Shift Sore', dayIdx: 2, reason: 'Tukar shift dengan Rian karena urusan mendadak', status: 'Ditolak', stepperStep: 3, isConflict: true }
         ],
         auditLogs: [
           { timestamp: '09:45 WIB', user: 'System AI', action: 'Shift Auto-Balance', detail: 'Seimbangkan shift malam Sabtu' }
@@ -264,12 +280,17 @@ export const useHRStore = create<HRState>()(
           { id: 1, employeeId: 1, title: 'Zero Keterlambatan', target: 0, current: 0, unit: 'kali', dueDate: 'Akhir Bulan' },
           { id: 2, employeeId: 1, title: 'Latte Art Positive Reviews', target: 20, current: 14, unit: 'reviews', dueDate: 'Akhir Bulan' },
           { id: 3, employeeId: 2, title: 'Akurasi Kasir 100%', target: 100, current: 99, unit: '%', dueDate: 'Akhir Bulan' },
-          { id: 4, employeeId: 4, title: 'Training Food Safety', target: 100, current: 45, unit: '%', dueDate: 'Akhir Bulan' }
+          { id: 4, employeeId: 3, title: 'Mentoring Junior Barista', target: 4, current: 2, unit: 'sesi', dueDate: 'Minggu Depan' },
+          { id: 5, employeeId: 4, title: 'Training Food Safety', target: 100, current: 45, unit: '%', dueDate: 'Akhir Bulan' },
+          { id: 6, employeeId: 5, title: 'Pelayanan Cepat < 3 Menit', target: 95, current: 88, unit: '%', dueDate: 'Akhir Bulan' }
         ],
         kudosList: [
           { id: 1, from: 1, to: 2, text: "Makasih banget udah back-up shift saya pas mendadak sakit kemarin! Penyelamat bgt kak! 🙏", type: "teamwork", date: "Hari ini" },
-          { id: 2, from: 3, to: 4, text: "Latte art makin rapi euy, customer meja 4 tadi sampai muji-muji. Pertahankan!", type: "skill", date: "Kemarin" },
-          { id: 3, from: 1, to: 5, text: "Closing super cepat & rapi malam ini. Besok pagi yang buka jadi enak banget.", type: "operational", date: "2 Hari lalu" }
+          { id: 2, from: 3, to: 4, text: "Latte art makin rapi euy, customer meja 4 tadi sampai muji-muji. Pertahankan! ☕", type: "skill", date: "Kemarin" },
+          { id: 3, from: 1, to: 5, text: "Closing super cepat & rapi malam ini. Besok pagi yang buka jadi enak banget. ✨", type: "operational", date: "2 Hari lalu" },
+          { id: 4, from: 2, to: 1, text: "Komunikasi ke tim sangat jelas, handling komplain pelanggan tadi siang juga pro banget! 🌟", type: "leadership", date: "3 Hari lalu" },
+          { id: 5, from: 4, to: 3, text: "Makasih udah ngajarin teknik kalibrasi grinder mesin espresso pagi tadi! 🎓", type: "mentorship", date: "4 Hari lalu" },
+          { id: 6, from: 5, to: 2, text: "Balance kasir 100% akurat minggu ini, ga ada selisih sama sekali. Keren! 💸", type: "accuracy", date: "Minggu lalu" }
         ]
       })
     }),

@@ -5,7 +5,10 @@ import { TiltCard } from '@/components/motion/TiltCard'
 import { useMemo } from 'react'
 
 export function Goals() {
-  const { employees, okrGoals, activeRole, activeEmployeeId } = useHRStore()
+  const employees = useHRStore(state => state.employees)
+  const okrGoals = useHRStore(state => state.okrGoals)
+  const activeRole = useHRStore(state => state.activeRole)
+  const activeEmployeeId = useHRStore(state => state.activeEmployeeId)
   
   const displayGoals = useMemo(() => {
     return activeRole === 'manager' 

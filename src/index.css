@@ -540,3 +540,29 @@ body.sidebar-collapsed #btn-toggle-sidebar {
   transform: translateY(-50%) rotate(180deg) !important;
 }
 
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  aside, header, #desktop-sidebar, .playground-panel-trigger, .fixed {
+    display: none !important;
+  }
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  #calendar-print-area {
+    width: 100% !important;
+  }
+  .glass-panel {
+    border: 1px solid #ccc !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+

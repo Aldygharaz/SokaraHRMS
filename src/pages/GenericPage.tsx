@@ -23,7 +23,10 @@ export function GenericPage({ title, description, icon: Icon }: { title: string,
           Modul ini sedang dalam tahap pengembangan iterasi berikutnya dalam pipeline CI/CD Sokara HR. 
           Semua data akan terintegrasi langsung dengan sistem ERP inti.
         </p>
-        <button className="mt-4 bg-surface-container-high text-on-surface hover:text-accent-primary border border-surface-container-highest text-xs font-bold py-2.5 px-6 rounded-xl transition-all">
+        <button 
+          onClick={() => window.location.hash = '#/dashboard'}
+          className="mt-4 bg-surface-container-high text-on-surface hover:text-accent-primary border border-surface-container-highest text-xs font-bold py-2.5 px-6 rounded-xl transition-all"
+        >
           Kembali ke Dashboard
         </button>
       </TiltCard>

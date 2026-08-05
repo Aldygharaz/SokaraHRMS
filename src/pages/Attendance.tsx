@@ -2,12 +2,17 @@ import { useHRStore } from '@/store/useHRStore'
 import { TiltCard } from '@/components/motion/TiltCard'
 import { MapPin, Clock, Download, CheckCircle2, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export function Attendance() {
-  const { employees } = useHRStore()
+  const { employees, activeRole, activeEmployeeId } = useHRStore()
   
   // Dummy attendance data based on employees
-  const attendances = employees.map((emp, idx) => {
+  const displayEmployees = activeRole === 'manager' 
+    ? employees 
+    : employees.filter(e => e.id === activeEmployeeId)
+
+  const attendances = displayEmployees.map((emp, idx) => {
     const isLate = idx % 4 === 0
     const isOutsideGeofence = idx === 3
     const timeIn = isLate ? '08:15' : '07:45'
@@ -36,25 +41,32 @@ export function Attendance() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <button className="bg-surface-container-high text-on-surface hover:text-accent-primary border border-surface-container-highest text-xs font-bold py-2 px-3 rounded-xl flex items-center gap-1 transition-colors">
-            <Download className="w-4 h-4" /> Export Laporan
-          </button>
+          {activeRole === 'manager' && (
+            <button 
+              onClick={() => toast.success("Laporan kehadiran berhasil di-export ke Excel.")}
+              className="bg-surface-container-high text-on-surface hover:text-accent-primary border border-surface-container-highest text-xs font-bold py-2 px-3 rounded-xl flex items-center gap-1 transition-colors"
+            >
+              <Download className="w-4 h-4" /> Export Laporan
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Hadir', value: attendances.length - 1, color: 'text-psy-safe' },
-          { label: 'Terlambat', value: 1, color: 'text-psy-warning' },
-          { label: 'Absen/Cuti', value: 0, color: 'text-semantic-neutral' },
-          { label: 'Diluar Geofence', value: 1, color: 'text-psy-danger' },
-        ].map((stat, i) => (
-          <TiltCard key={i} className="glass-panel rounded-2xl p-4 border border-outline">
-            <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">{stat.label}</p>
-            <p className={cn("text-3xl font-bold font-display", stat.color)}>{stat.value}</p>
-          </TiltCard>
-        ))}
-      </div>
+      {activeRole === 'manager' && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[
+            { label: 'Hadir', value: attendances.length - 1, color: 'text-psy-safe' },
+            { label: 'Terlambat', value: 1, color: 'text-psy-warning' },
+            { label: 'Absen/Cuti', value: 0, color: 'text-semantic-neutral' },
+            { label: 'Diluar Geofence', value: 1, color: 'text-psy-danger' },
+          ].map((stat, i) => (
+            <TiltCard key={i} className="glass-panel rounded-2xl p-4 border border-outline">
+              <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">{stat.label}</p>
+              <p className={cn("text-3xl font-bold font-display", stat.color)}>{stat.value}</p>
+            </TiltCard>
+          ))}
+        </div>
+      )}
 
       <div className="glass-panel spotlight-card rounded-2xl overflow-hidden overflow-x-auto border border-outline p-0">
         <table className="w-full text-left border-collapse min-w-[850px]">
@@ -112,7 +124,16 @@ export function Attendance() {
                   </span>
                 </td>
                 <td className="p-4">
-                  <button className="text-accent-primary font-bold hover:underline text-xs">Detail GPS</button>
+                  <button 
+                    onClick={() => {
+                      const lat = (Math.random() * ( -6.20 - -6.30) + -6.30).toFixed(6)
+                      const lng = (Math.random() * (106.90 - 106.70) + 106.70).toFixed(6)
+                      toast.info(`Lokasi GPS: ${lat}, ${lng}`, { description: 'Buka di Google Maps untuk melihat koordinat pasti.' })
+                    }}
+                    className="text-accent-primary font-bold hover:underline text-xs"
+                  >
+                    Detail GPS
+                  </button>
                 </td>
               </tr>
             ))}

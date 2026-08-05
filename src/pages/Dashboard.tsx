@@ -6,12 +6,33 @@ import { toast } from 'sonner'
 import { useMemo } from 'react'
 
 export function Dashboard() {
-  const { activeRole, employees, auditLogs, autoBalanceShifts, addAuditLog } = useHRStore()
+  const activeRole = useHRStore(state => state.activeRole)
+  const activeEmployeeId = useHRStore(state => state.activeEmployeeId)
+  const employees = useHRStore(state => state.employees)
+  const shifts = useHRStore(state => state.shifts)
+  const auditLogs = useHRStore(state => state.auditLogs)
+  const autoBalanceShifts = useHRStore(state => state.autoBalanceShifts)
+  const autoFillShifts = useHRStore(state => state.autoFillShifts)
+  const addAuditLog = useHRStore(state => state.addAuditLog)
   const headcount = employees.length
 
   const highRiskEmployees = useMemo(() => {
     return employees.filter(e => (e.attritionRisk || 0) > 40)
   }, [employees])
+
+  const activeEmployee = useMemo(() => employees.find(e => e.id === activeEmployeeId), [employees, activeEmployeeId])
+  
+  const myWorkDays = useMemo(() => {
+    const myShifts = shifts[activeEmployeeId] || []
+    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+    return myShifts.map((shift, idx) => ({ day: days[idx], shift })).filter(s => s.shift !== 'OFF' && s.shift !== 'Kosong')
+  }, [shifts, activeEmployeeId])
+
+  const estimatedPayroll = useMemo(() => {
+    const base = activeEmployee?.baseSalary || 0
+    const overtime = (activeEmployee?.overtimeHours || 0) * (activeEmployee?.rate || 0)
+    return base + overtime
+  }, [activeEmployee])
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -142,7 +163,7 @@ export function Dashboard() {
             <div className="glass-panel p-6 border border-outline rounded-2xl">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-on-surface text-lg font-display">Aktivitas Terkini</h3>
-                <button className="text-xs text-accent-primary font-bold hover:underline">Lihat Semua</button>
+                <button onClick={() => window.location.hash = '#/calendar'} className="text-xs text-accent-primary font-bold hover:underline">Lihat Semua</button>
               </div>
               <div className="space-y-3">
                 {auditLogs.map((log, idx) => (
@@ -193,11 +214,16 @@ export function Dashboard() {
             <div className="glass-panel p-6 border border-outline rounded-2xl">
               <h3 className="font-bold text-on-surface font-display mb-4">Quick Shortcuts</h3>
               <div className="grid grid-cols-2 gap-3">
-                <button className="p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline flex flex-col items-center justify-center gap-2 transition-colors">
+                <button onClick={() => {
+                  autoFillShifts()
+                  toast.success("Roster Mingguan berhasil di-generate AI!")
+                }} className="p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline flex flex-col items-center justify-center gap-2 transition-colors">
                   <CalendarClock className="w-5 h-5 text-accent-primary" />
                   <span className="text-[10px] font-bold text-on-surface text-center">Buat Roster<br/>Mingguan</span>
                 </button>
-                <button className="p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline flex flex-col items-center justify-center gap-2 transition-colors">
+                <button onClick={() => {
+                  window.location.hash = '#/payroll'
+                }} className="p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline flex flex-col items-center justify-center gap-2 transition-colors">
                   <Wallet className="w-5 h-5 text-psy-safe" />
                   <span className="text-[10px] font-bold text-on-surface text-center">Generate<br/>Payroll</span>
                 </button>
@@ -217,11 +243,15 @@ export function Dashboard() {
                 </span>
                 <CalendarCheck className="text-accent-primary w-5 h-5" />
               </div>
-              <div className="space-y-2 text-xs">
-                <div className="flex justify-between p-2 rounded-lg bg-surface-container-low font-semibold"><span>Senin:</span><span className="text-accent-primary">Pagi (07:00-15:00)</span></div>
-                <div className="flex justify-between p-2 rounded-lg bg-surface-container-low font-semibold"><span>Selasa:</span><span className="text-accent-primary">Pagi (07:00-15:00)</span></div>
-                <div className="flex justify-between p-2 rounded-lg bg-surface-container-low font-semibold"><span>Kamis:</span><span className="text-accent-primary">Pagi (07:00-15:00)</span></div>
-                <div className="flex justify-between p-2 rounded-lg bg-surface-container-low font-semibold"><span>Sabtu:</span><span className="text-accent-primary">Sore (15:00-23:00)</span></div>
+              <div className="space-y-2 text-xs h-[140px] overflow-y-auto pr-1 custom-scrollbar">
+                {myWorkDays.length > 0 ? myWorkDays.map((workDay, idx) => (
+                  <div key={idx} className="flex justify-between p-2 rounded-lg bg-surface-container-low font-semibold">
+                    <span>{workDay.day}:</span>
+                    <span className="text-accent-primary">{workDay.shift} {workDay.shift === 'Pagi' ? '(07:00-15:00)' : '(15:00-23:00)'}</span>
+                  </div>
+                )) : (
+                  <div className="flex items-center justify-center h-full text-on-surface-variant italic">Belum ada jadwal shift</div>
+                )}
               </div>
             </div>
           </TiltCard>
@@ -232,8 +262,10 @@ export function Dashboard() {
                 <span className="font-bold text-on-surface-variant text-xs uppercase tracking-wider">Estimasi Payroll</span>
                 <TrendingUp className="text-psy-safe w-5 h-5" />
               </div>
-              <h3 className="text-3xl font-bold text-on-surface font-mono">Rp 4.250.000</h3>
-              <p className="text-xs text-on-surface-variant mt-2 font-medium">Proyeksi THP bulan ini berdasarkan 40 jam kerja dan 12 jam lembur.</p>
+              <h3 className="text-3xl font-bold text-on-surface font-mono">
+                Rp {estimatedPayroll.toLocaleString('id-ID')}
+              </h3>
+              <p className="text-xs text-on-surface-variant mt-2 font-medium">Proyeksi THP bulan ini berdasarkan gaji pokok dan lembur {activeEmployee?.overtimeHours || 0} jam.</p>
             </div>
             <div className="p-3 bg-psy-safe/10 border border-psy-safe/20 rounded-xl">
               <p className="text-xs text-psy-safe-text font-bold">✨ Tersedia untuk ditarik: Rp 1.500.000 (Kasbon Early Wage)</p>

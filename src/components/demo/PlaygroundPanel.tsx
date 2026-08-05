@@ -31,11 +31,14 @@ export function PlaygroundPanel() {
         onClick={() => setIsOpen(true)}
         className={cn(
           "fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-lg transition-all duration-300 group",
-          "bg-on-surface text-surface hover:scale-105 hover:shadow-2xl",
+          "bg-on-surface text-surface hover:scale-105 hover:shadow-2xl flex items-center gap-2",
           isOpen ? "opacity-0 pointer-events-none scale-75" : "opacity-100"
         )}
       >
         <Settings2 className="w-6 h-6 group-hover:rotate-90 transition-transform duration-500" />
+        <span className="absolute -top-2 -right-2 bg-psy-danger text-psy-danger-text text-[10px] font-bold px-2 py-0.5 rounded-full border-2 border-surface animate-pulse">
+          DEMO
+        </span>
       </button>
 
       {/* Backdrop */}

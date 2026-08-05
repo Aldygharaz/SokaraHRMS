@@ -5,7 +5,14 @@ import { Wifi, Keyboard, Volume2, VolumeX, Bell, Sun, Moon, ChevronDown, Check }
 import { useState } from 'react'
 
 export function Header() {
-  const { activeRole, setActiveRole, soundEnabled, toggleSound, toggleSidebar, theme, setTheme, activeBranch } = useHRStore()
+  const activeRole = useHRStore(state => state.activeRole)
+  const setActiveRole = useHRStore(state => state.setActiveRole)
+  const soundEnabled = useHRStore(state => state.soundEnabled)
+  const toggleSound = useHRStore(state => state.toggleSound)
+  const toggleSidebar = useHRStore(state => state.toggleSidebar)
+  const theme = useHRStore(state => state.theme)
+  const setTheme = useHRStore(state => state.setTheme)
+  const activeBranch = useHRStore(state => state.activeBranch)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showBranchMenu, setShowBranchMenu] = useState(false)
   const branches = [

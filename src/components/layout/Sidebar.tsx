@@ -1,10 +1,16 @@
 import { NavLink } from 'react-router-dom'
 import { useHRStore } from '@/store/useHRStore'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Calendar, ClipboardCheck, ScrollText, Wallet, Users, Settings2, Download, History, LogOut, ChevronLeft, Target, Heart } from 'lucide-react'
+import { LayoutDashboard, Calendar, ClipboardCheck, ScrollText, Wallet, Users, Settings2, Download, History, LogOut, ChevronLeft, Target, Heart, X } from 'lucide-react'
+import { toast } from 'sonner'
+import { useState } from 'react'
 
 export function Sidebar() {
-  const { isSidebarCollapsed, toggleSidebar, activeRole } = useHRStore()
+  const isSidebarCollapsed = useHRStore(state => state.isSidebarCollapsed)
+  const toggleSidebar = useHRStore(state => state.toggleSidebar)
+  const activeRole = useHRStore(state => state.activeRole)
+  const auditLogs = useHRStore(state => state.auditLogs)
+  const [showAuditModal, setShowAuditModal] = useState(false)
   
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', show: true },
@@ -71,17 +77,26 @@ export function Sidebar() {
       </nav>
 
       <div className="px-4 mt-auto space-y-2 pt-2 border-t border-white/10 overflow-hidden pb-4">
-        <button className="w-full bg-gradient-to-r from-accent-primary to-primary text-white font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(27,95,174,0.4)] transition-all text-xs font-display">
+        <button onClick={() => toast.success('Smart Suggestion: Coba seimbangkan roster hari Jumat karena resiko lembur tinggi.', { icon: '💡' })} className="w-full bg-gradient-to-r from-accent-primary to-primary text-white font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(27,95,174,0.4)] transition-all text-xs font-display">
           <Settings2 className="w-4 h-4 shrink-0" />
           <span className={cn("transition-all duration-300 whitespace-nowrap", isSidebarCollapsed ? "opacity-0 w-0" : "opacity-100")}>✨ Smart Suggestion</span>
         </button>
 
         <div className={cn("grid gap-2 transition-all duration-300", isSidebarCollapsed ? "grid-cols-1" : "grid-cols-2")}>
-          <button className="w-full bg-surface-container-high border border-surface-container-highest text-on-surface-variant hover:text-accent-primary hover:bg-surface-container-highest font-semibold py-2 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1 transition-all" title="Export CSV">
+          <button onClick={() => {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(useHRStore.getState().employees))
+            const downloadAnchorNode = document.createElement('a')
+            downloadAnchorNode.setAttribute("href", dataStr)
+            downloadAnchorNode.setAttribute("download", "employees_export.json")
+            document.body.appendChild(downloadAnchorNode)
+            downloadAnchorNode.click()
+            downloadAnchorNode.remove()
+            toast.success("Data berhasil diekspor!")
+          }} className="w-full bg-surface-container-high border border-surface-container-highest text-on-surface-variant hover:text-accent-primary hover:bg-surface-container-highest font-semibold py-2 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1 transition-all" title="Export CSV">
             <Download className="w-4 h-4 shrink-0" />
-            <span className={cn("transition-all duration-300 whitespace-nowrap", isSidebarCollapsed ? "hidden" : "inline")}>Export CSV</span>
+            <span className={cn("transition-all duration-300 whitespace-nowrap", isSidebarCollapsed ? "hidden" : "inline")}>Export JSON</span>
           </button>
-          <button className="w-full bg-surface-container-high border border-surface-container-highest text-on-surface-variant hover:text-accent-primary hover:bg-surface-container-highest font-semibold py-2 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1 transition-all" title="Audit Log">
+          <button onClick={() => setShowAuditModal(true)} className="w-full bg-surface-container-high border border-surface-container-highest text-on-surface-variant hover:text-accent-primary hover:bg-surface-container-highest font-semibold py-2 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1 transition-all" title="Audit Log">
             <History className="w-4 h-4 shrink-0" />
             <span className={cn("transition-all duration-300 whitespace-nowrap", isSidebarCollapsed ? "hidden" : "inline")}>Audit Log</span>
           </button>
@@ -99,6 +114,44 @@ export function Sidebar() {
           <span className={cn("transition-all duration-300 whitespace-nowrap", isSidebarCollapsed ? "opacity-0 w-0 hidden" : "opacity-100")}>Keluar & Reset Data</span>
         </button>
       </div>
+
+      {/* Audit Log Modal */}
+      {showAuditModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-surface border border-outline w-full max-w-md rounded-3xl overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-outline flex justify-between items-center bg-surface-container-lowest">
+              <h3 className="font-bold text-on-surface font-display text-lg flex items-center gap-2">
+                <History className="w-5 h-5 text-accent-primary" /> System Audit Logs
+              </h3>
+              <button onClick={() => setShowAuditModal(false)} className="p-2 text-on-surface-variant hover:bg-surface-container rounded-xl transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              {auditLogs.length > 0 ? auditLogs.map((log, i) => (
+                <div key={i} className="flex gap-4 p-4 rounded-2xl bg-surface-container border border-outline hover:border-accent-primary/50 transition-colors">
+                  <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center text-accent-primary shrink-0">
+                    <History className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-on-surface">{log.action}</span>
+                      <span className="text-[10px] bg-surface-container-high px-2 py-0.5 rounded-full text-on-surface-variant font-mono">{log.timestamp}</span>
+                    </div>
+                    <p className="text-xs text-on-surface-variant leading-relaxed">
+                      <strong className="text-on-surface">{log.user}</strong>: {log.detail}
+                    </p>
+                  </div>
+                </div>
+              )) : (
+                <div className="text-center p-8 text-on-surface-variant text-sm italic">
+                  Belum ada log aktivitas.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   )
 }

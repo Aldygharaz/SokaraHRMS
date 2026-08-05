@@ -1,17 +1,23 @@
 import { useState } from 'react'
 import { useHRStore } from '@/store/useHRStore'
 import { TiltCard } from '@/components/motion/TiltCard'
-import { Download, Landmark, Calculator, Settings, Edit2, X, Save } from 'lucide-react'
+import { Download, Landmark, Calculator, Settings, Edit2, X, Save, Info, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 
 export function Payroll() {
-  const { employees, activeRole, activeEmployeeId, terRates, updateTerRates, updateEmployeePayroll } = useHRStore()
+  const employees = useHRStore(state => state.employees)
+  const activeRole = useHRStore(state => state.activeRole)
+  const activeEmployeeId = useHRStore(state => state.activeEmployeeId)
+  const terRates = useHRStore(state => state.terRates)
+  const updateTerRates = useHRStore(state => state.updateTerRates)
+  const updateEmployeePayroll = useHRStore(state => state.updateEmployeePayroll)
   
   const displayEmployees = activeRole === 'manager' ? employees : employees.filter(e => e.id === activeEmployeeId)
   
   const [showTerModal, setShowTerModal] = useState(false)
   const [terForm, setTerForm] = useState(terRates)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const [editEmpId, setEditEmpId] = useState<number | null>(null)
   const [empForm, setEmpForm] = useState({
@@ -45,6 +51,15 @@ export function Payroll() {
     }
   }
 
+  const handleGenerate = () => {
+    setIsGenerating(true)
+    toast.loading("Memproses kalkulasi pajak TER dan slip gaji...", { id: 'generate-payroll' })
+    setTimeout(() => {
+      setIsGenerating(false)
+      toast.success("5 Slip gaji berhasil di-generate dan dikirim ke karyawan!", { id: 'generate-payroll' })
+    }, 2500)
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500 relative">
       <div className="glass-panel spotlight-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-outline">
@@ -69,8 +84,13 @@ export function Payroll() {
               >
                 <Settings className="w-4 h-4" /> Konfigurasi TER
               </button>
-              <button className="bg-gradient-to-r from-accent-primary to-primary text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center gap-1 transition-all hover:shadow-[0_0_18px_rgba(27,95,174,0.4)]">
-                <Calculator className="w-4 h-4" /> Generate Semua Slip
+              <button 
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="bg-gradient-to-r from-accent-primary to-primary text-white text-xs font-bold py-2 px-3 rounded-xl flex items-center gap-1 transition-all hover:shadow-[0_0_18px_rgba(27,95,174,0.4)] disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Calculator className="w-4 h-4" />} 
+                {isGenerating ? 'Memproses...' : 'Generate Semua Slip'}
               </button>
             </>
           )}
@@ -134,7 +154,12 @@ export function Payroll() {
                     <span className="text-on-surface font-mono">Rp {grossSalary.toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between text-xs font-bold text-psy-danger">
-                    <span className="flex items-center gap-1"><Landmark className="w-3 h-3"/> PPh 21 TER ({terPercentage}%)</span>
+                    <span className="flex items-center gap-1">
+                      <Landmark className="w-3 h-3"/> PPh 21 TER ({terPercentage}%)
+                      <span title={`Kategori ${emp.kat} (${emp.ptkp}) - Perhitungan: Gross Salary × ${terPercentage}%`}>
+                        <Info className="w-3 h-3 text-psy-danger/60 hover:text-psy-danger cursor-help transition-colors" />
+                      </span>
+                    </span>
                     <span className="font-mono">- Rp {Math.round(taxDeduction).toLocaleString('id-ID')}</span>
                   </div>
                 </div>
@@ -147,7 +172,10 @@ export function Payroll() {
                     <span className="text-lg font-bold text-accent-primary font-mono">Rp {Math.round(netSalary).toLocaleString('id-ID')}</span>
                   </div>
                 </div>
-                <button className="w-full bg-surface-container-high hover:bg-surface-container text-on-surface border border-outline py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-colors text-xs font-bold">
+                <button 
+                  onClick={() => toast.success("Payslip PDF berhasil didownload.")}
+                  className="w-full bg-surface-container-high hover:bg-surface-container text-on-surface border border-outline py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-colors text-xs font-bold"
+                >
                   <Download className="w-4 h-4 text-on-surface-variant" /> Export Payslip PDF
                 </button>
               </div>
@@ -158,8 +186,8 @@ export function Payroll() {
 
       {/* MODAL KONFIGURASI TER */}
       {showTerModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowTerModal(false)}></div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowTerModal(false)}></div>
           <div className="relative bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold font-display text-lg">Konfigurasi Pajak TER</h3>
@@ -193,8 +221,8 @@ export function Payroll() {
 
       {/* MODAL EDIT KARYAWAN */}
       {editEmpId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setEditEmpId(null)}></div>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setEditEmpId(null)}></div>
           <div className="relative bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold font-display text-lg">Edit Data Payroll</h3>

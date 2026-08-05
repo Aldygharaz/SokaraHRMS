@@ -4,12 +4,14 @@ import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { CommandPalette } from './CommandPalette'
 import { PlaygroundPanel } from '../demo/PlaygroundPanel'
+import { WelcomeBanner } from './WelcomeBanner'
 import { useHRStore } from '@/store/useHRStore'
 import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
 
 export function AppLayout() {
-  const { isSidebarCollapsed, toggleSidebar } = useHRStore()
+  const isSidebarCollapsed = useHRStore(state => state.isSidebarCollapsed)
+  const toggleSidebar = useHRStore(state => state.toggleSidebar)
 
   useEffect(() => {
     const handleResize = () => {
@@ -44,6 +46,7 @@ export function AppLayout() {
       </main>
       <CommandPalette />
       <PlaygroundPanel />
+      <WelcomeBanner />
     </div>
   )
 }
