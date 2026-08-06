@@ -1,10 +1,17 @@
-import { Loader2 } from 'lucide-react'
-
 export function PageLoader() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[50vh] text-on-surface-variant animate-in fade-in duration-500">
-      <Loader2 className="w-8 h-8 animate-spin text-accent-primary mb-4" />
-      <p className="text-sm font-semibold tracking-wider uppercase font-display">Memuat Modul...</p>
+    <div className="space-y-6 animate-pulse p-4">
+      <div className="h-40 bg-surface-container-high rounded-3xl w-full"></div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="h-32 bg-surface-container-high rounded-2xl w-full"></div>
+        <div className="h-32 bg-surface-container-high rounded-2xl w-full"></div>
+        <div className="h-32 bg-surface-container-high rounded-2xl w-full"></div>
+        <div className="h-32 bg-surface-container-high rounded-2xl w-full"></div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 h-64 bg-surface-container-high rounded-2xl w-full"></div>
+        <div className="h-64 bg-surface-container-high rounded-2xl w-full"></div>
+      </div>
     </div>
   )
 }

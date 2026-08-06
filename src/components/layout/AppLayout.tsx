@@ -2,6 +2,7 @@
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
+import { BottomNav } from './BottomNav'
 import { CommandPalette } from './CommandPalette'
 import { PlaygroundPanel } from '../demo/PlaygroundPanel'
 import { WelcomeBanner } from './WelcomeBanner'
@@ -40,10 +41,11 @@ export function AppLayout() {
       <Sidebar />
       <main className={cn("flex-1 flex flex-col min-h-screen relative pb-20 md:pb-8 transition-all duration-300", isSidebarCollapsed ? "md:ml-20" : "md:ml-64")}>
         <Header />
-        <div className="flex-1 overflow-x-hidden p-4 md:p-6 lg:p-8">
+        <div className="flex-1 overflow-x-hidden p-4 md:p-6 lg:p-8 mb-16 md:mb-0">
           <Outlet />
         </div>
       </main>
+      <BottomNav />
       <CommandPalette />
       <PlaygroundPanel />
       <WelcomeBanner />
