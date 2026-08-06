@@ -160,6 +160,61 @@ export function ManagerDashboard() {
               )}
             </div>
           </div>
+
+          <div className="glass-panel p-6 border border-outline rounded-2xl bg-gradient-to-br from-surface to-surface-container-lowest">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-on-surface text-lg font-display">Tim Bertugas Hari Ini</h3>
+              <span className="text-xs font-bold text-psy-safe bg-psy-safe-bg px-2 py-1 rounded-md">Shift Berjalan</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {employees.slice(0, 4).map(emp => (
+                <div key={emp.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low border border-outline hover:border-accent-primary/40 transition-colors cursor-pointer group">
+                  <img src={emp.avatar} alt={emp.name} className="w-10 h-10 rounded-full object-cover border border-outline group-hover:border-accent-primary/50" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-on-surface truncate group-hover:text-accent-primary transition-colors">{emp.name}</p>
+                    <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">{emp.role}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] font-bold text-on-surface bg-surface-container-high px-2 py-1 rounded-md">
+                      Pagi
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="glass-panel p-6 border border-outline rounded-2xl bg-surface">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-on-surface text-lg font-display">Statistik Produktivitas</h3>
+              <span className="text-[10px] font-bold text-accent-primary bg-accent-primary/10 px-2 py-1 rounded-md">Minggu Ini</span>
+            </div>
+            <div className="flex items-end justify-between h-32 gap-2 mt-4 px-2">
+              {[
+                { day: 'Sen', value: 65, label: '65%' },
+                { day: 'Sel', value: 80, label: '80%' },
+                { day: 'Rab', value: 45, label: '45%' },
+                { day: 'Kam', value: 90, label: '90%' },
+                { day: 'Jum', value: 75, label: '75%' },
+                { day: 'Sab', value: 100, label: '100%' },
+                { day: 'Min', value: 85, label: '85%' },
+              ].map((item) => (
+                <div key={item.day} className="flex flex-col items-center gap-2 flex-1 group h-full justify-end">
+                  <div className="w-full max-w-[40px] bg-surface-container rounded-t-lg relative flex items-end justify-center h-full group-hover:bg-surface-container-high transition-colors">
+                    <div 
+                      className="w-full bg-gradient-to-t from-accent-primary to-primary rounded-t-lg transition-all duration-500 shadow-sm group-hover:shadow-[0_0_15px_rgba(27,95,174,0.3)] dark:group-hover:shadow-[0_0_15px_rgba(9,132,227,0.3)] group-hover:opacity-90 relative"
+                      style={{ height: `${item.value}%` }}
+                    >
+                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-on-surface opacity-0 group-hover:opacity-100 transition-opacity">
+                        {item.label}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{item.day}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-6">
@@ -202,6 +257,45 @@ export function ManagerDashboard() {
                 <Wallet className="w-5 h-5 text-psy-safe" />
                 <span className="text-[10px] font-bold text-on-surface text-center">Generate<br/>Payroll</span>
               </button>
+            </div>
+          </div>
+
+
+          <div className="glass-panel p-6 border border-outline rounded-2xl">
+            <h3 className="font-bold text-on-surface font-display mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-psy-safe animate-pulse"></span>
+              Live Kehadiran Hari Ini
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-on-surface-variant">Hadir Tepat Waktu</span>
+                  <span className="text-xs font-bold text-psy-safe">12 / 15</span>
+                </div>
+                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-psy-safe h-full rounded-full" style={{ width: '80%' }}></div>
+                </div>
+              </div>
+              
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-on-surface-variant">Terlambat</span>
+                  <span className="text-xs font-bold text-psy-warning">2 / 15</span>
+                </div>
+                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-psy-warning h-full rounded-full" style={{ width: '13%' }}></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-on-surface-variant">Absen / Sakit</span>
+                  <span className="text-xs font-bold text-psy-danger">1 / 15</span>
+                </div>
+                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-psy-danger h-full rounded-full" style={{ width: '7%' }}></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

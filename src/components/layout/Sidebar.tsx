@@ -10,7 +10,11 @@ export function Sidebar() {
   const toggleSidebar = useHRStore(state => state.toggleSidebar)
   const activeRole = useHRStore(state => state.activeRole)
   const auditLogs = useHRStore(state => state.auditLogs)
+  const employees = useHRStore(state => state.employees)
+  const activeEmployeeId = useHRStore(state => state.activeEmployeeId)
   const [showAuditModal, setShowAuditModal] = useState(false)
+  
+  const activeEmployee = employees.find(e => e.id === activeEmployeeId)
   
   const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard', show: true },
@@ -102,17 +106,34 @@ export function Sidebar() {
           </button>
         </div>
 
-        <button 
-          onClick={() => {
-            useHRStore.getState().resetStore()
-            window.location.reload()
-          }}
-          className="w-full mt-2 bg-transparent border border-error/50 text-error hover:bg-error/10 font-semibold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-all text-xs" 
-          title="Logout"
-        >
-          <LogOut className="w-4 h-4 shrink-0" />
-          <span className={cn("transition-all duration-300 whitespace-nowrap", isSidebarCollapsed ? "opacity-0 w-0 hidden" : "opacity-100")}>Keluar & Reset Data</span>
-        </button>
+        {/* User Profile Card */}
+        <div className={cn(
+          "flex items-center gap-3 p-3 mt-4 rounded-xl border border-white/5 transition-all duration-300",
+          isSidebarCollapsed ? "justify-center" : "bg-white/5 hover:bg-white/10"
+        )}>
+          <img 
+            src={activeEmployee?.avatar || `https://i.pravatar.cc/150?u=${activeEmployeeId}`}
+            className="w-10 h-10 rounded-full object-cover border-2 border-white/10 shrink-0"
+            alt="Profile"
+          />
+          <div className={cn("flex-1 overflow-hidden transition-all duration-300", isSidebarCollapsed ? "opacity-0 w-0 hidden" : "opacity-100")}>
+            <p className="text-sm font-bold text-white truncate font-display">{activeEmployee?.name || 'Administrator'}</p>
+            <p className="text-[10px] text-white/60 truncate uppercase tracking-wider">{activeRole}</p>
+          </div>
+          <button 
+            onClick={() => {
+              useHRStore.getState().resetStore()
+              window.location.reload()
+            }}
+            className={cn(
+              "p-2 text-white/50 hover:text-error hover:bg-error/20 rounded-lg transition-colors shrink-0",
+              isSidebarCollapsed ? "hidden" : "flex"
+            )}
+            title="Keluar"
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Audit Log Modal */}

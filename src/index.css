@@ -101,15 +101,15 @@ html.dark {
   --color-outline: #3F4147;             /* Divider */
 
   /* COLOR SYSTEM REVISION (Trust & Corporate Blue) */
-  --accent-primary: 27 95 174;         /* RGB for #1B5FAE */
-  --accent-primary-hover: #4A90D9;
-  --accent-primary-light: rgba(27, 95, 174, 0.25);
+  --accent-primary: 9 132 227;         /* RGB for #0984E3 (Discord Electron Blue) */
+  --accent-primary-hover: #0097E6;     /* Dark Electron Blue */
+  --accent-primary-light: rgba(9, 132, 227, 0.25);
   
-  --color-secondary: #4A90D9;
-  --color-action: #1B5FAE;
+  --color-secondary: #0097E6;
+  --color-action: #0984E3;
   --color-semantic-warning: #ED4245;  /* Discord Red */
   --color-semantic-positive: #23A559; /* Discord Green */
-  --color-semantic-neutral: 148 163 184;  /* RGB for #94A3B8 */
+  --color-semantic-neutral: 181 186 193;  /* RGB for #B5BAC1 (Discord Muted) */
 
   /* PSYCHOLOGICAL SEMANTIC COLORS (DARK MODE - DISCORD PALETTE) */
   --color-psy-safe: #23A559;          /* Discord Green */

@@ -105,14 +105,14 @@ export function Calendar() {
 
             <div className="font-bold text-on-surface-variant flex items-center justify-end pr-2 border-r border-outline">Pagi (2)</div>
             {heatmapCounts.pagi.map((count, dayIdx) => (
-              <div key={`pagi-${dayIdx}`} className={cn("p-2 rounded-lg text-center font-bold font-mono transition-colors", count >= 2 ? "bg-psy-safe/20 text-psy-safe-text" : count === 1 ? "bg-psy-warning/20 text-psy-warning-text" : "bg-error/20 text-error")} title={`${count} staf pagi`}>
+              <div key={`pagi-${dayIdx}`} className={cn("p-2 rounded-lg text-center font-bold font-mono transition-colors", count >= 2 ? "bg-psy-safe-bg text-psy-safe-text" : count === 1 ? "bg-psy-warning-bg text-psy-warning-text" : "bg-psy-danger-bg text-psy-danger-text")} title={`${count} staf pagi`}>
                 {count}
               </div>
             ))}
 
             <div className="font-bold text-on-surface-variant flex items-center justify-end pr-2 border-r border-outline">Sore (2)</div>
             {heatmapCounts.sore.map((count, dayIdx) => (
-              <div key={`sore-${dayIdx}`} className={cn("p-2 rounded-lg text-center font-bold font-mono transition-colors", count >= 2 ? "bg-psy-safe/20 text-psy-safe-text" : count === 1 ? "bg-psy-warning/20 text-psy-warning-text" : "bg-error/20 text-error")} title={`${count} staf sore`}>
+              <div key={`sore-${dayIdx}`} className={cn("p-2 rounded-lg text-center font-bold font-mono transition-colors", count >= 2 ? "bg-psy-safe-bg text-psy-safe-text" : count === 1 ? "bg-psy-warning-bg text-psy-warning-text" : "bg-psy-danger-bg text-psy-danger-text")} title={`${count} staf sore`}>
                 {count}
               </div>
             ))}
