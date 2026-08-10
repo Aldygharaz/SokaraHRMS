@@ -1,5 +1,5 @@
 import { useHRStore } from '@/store/useHRStore'
-import { Users, CalendarClock, BrainCircuit, AlertCircle, ChevronRight, AlertTriangle, Wallet, Activity } from 'lucide-react'
+import { Users, CalendarClock, BrainCircuit, AlertCircle, ChevronRight, AlertTriangle, Wallet, Activity, Sparkles } from 'lucide-react'
 import { TiltCard } from '@/components/motion/TiltCard'
 import { toast } from 'sonner'
 import { useMemo } from 'react'
@@ -109,7 +109,7 @@ export function ManagerDashboard() {
               "Biaya lembur naik <strong className="text-semantic-warning font-bold">23%</strong> minggu ini. Analisis: 4 dari 6 lembur terkonsentrasi pada tim shift malam Sabtu akibat penumpukan pesanan."
             </p>
             <div className="p-3 rounded-2xl bg-surface border border-accent-primary/20 text-[11px] text-on-surface-variant shadow-sm mb-4">
-              <p className="leading-relaxed">✨ <strong>Rekomendasi AI:</strong> Dialihkan ke Dimas Prasetyo & Budi Santoso untuk menghemat estimasi <strong>Rp 975.000 / minggu</strong>.</p>
+              <p className="leading-relaxed"><Sparkles className="w-4 h-4 inline-block text-accent-primary mr-1 mb-0.5" /> <strong>Rekomendasi AI:</strong> Dialihkan ke Dimas Prasetyo & Budi Santoso untuk menghemat estimasi <strong>Rp 975.000 / minggu</strong>.</p>
             </div>
           </div>
           <button
@@ -118,7 +118,7 @@ export function ManagerDashboard() {
               addAuditLog({ user: 'System AI', action: 'Shift Auto-Balance', detail: 'Mengalihkan shift lembur untuk staf risiko tinggi' })
               toast.success("Shift berhasil diseimbangkan secara otomatis!", {
                 description: "Estimasi penghematan: Rp 975.000",
-                icon: '✨',
+                icon: <Sparkles className="w-4 h-4 text-accent-primary" />,
                 action: { label: 'Lihat Kalender', onClick: () => window.location.hash = '#/calendar' }
               })
             }}

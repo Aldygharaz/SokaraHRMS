@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { useHRStore } from '@/store/useHRStore'
 import { cn } from '@/lib/utils'
-import { LayoutDashboard, Calendar, ClipboardCheck, ScrollText, Wallet, Users, Settings2, Download, History, LogOut, ChevronLeft, Target, Heart, X } from 'lucide-react'
+import { LayoutDashboard, Calendar, ClipboardCheck, ScrollText, Wallet, Users, Settings2, Download, History, LogOut, ChevronLeft, Target, Heart, X, Sparkles, Lightbulb } from 'lucide-react'
 import { toast } from 'sonner'
 import { useState } from 'react'
 
@@ -35,14 +35,12 @@ export function Sidebar() {
       )}
     >
       <div className="h-16 flex items-center px-4 relative mt-2 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent-primary flex items-center justify-center text-white font-bold text-lg shadow-inner shrink-0">
-            S
-          </div>
-          <div className={cn("overflow-hidden transition-all duration-300 whitespace-nowrap", isSidebarCollapsed ? "opacity-0 w-0" : "opacity-100")}>
-            <h1 className="text-xl font-bold text-white tracking-tight font-display">Sokara HRMS</h1>
-            <p className="text-[10px] text-white/70 uppercase tracking-widest font-semibold">RBAC Portal Engine</p>
-          </div>
+        <div className="flex items-center">
+          <img 
+            src={isSidebarCollapsed ? "/sokara-logomark-transparent-light.svg" : "/sokara-horizontal-dark-bg.svg"} 
+            alt="Sokara Logo" 
+            className={cn("transition-all duration-300", isSidebarCollapsed ? "h-8 w-8 mx-auto" : "h-10 w-auto -ml-2")} 
+          />
         </div>
         <button 
           onClick={toggleSidebar}
@@ -65,7 +63,7 @@ export function Sidebar() {
               }
             }}
             className={({isActive}) => cn(
-              "flex items-center gap-3 w-full text-left px-4 py-2.5 rounded-xl transition-all text-sm font-semibold whitespace-nowrap overflow-hidden group",
+              "flex items-center gap-3 w-full text-left px-4 py-2.5 rounded-xl transition-all text-sm font-semibold whitespace-nowrap overflow-hidden group select-none",
               isActive ? "bg-white/10 text-white" : "text-white/70 hover:bg-white/10 hover:text-white"
             )}
             title={item.label}
@@ -81,9 +79,9 @@ export function Sidebar() {
       </nav>
 
       <div className="px-4 mt-auto space-y-2 pt-2 border-t border-white/10 overflow-hidden pb-4">
-        <button onClick={() => toast.success('Smart Suggestion: Coba seimbangkan roster hari Jumat karena resiko lembur tinggi.', { icon: '💡' })} className="w-full bg-gradient-to-r from-accent-primary to-primary text-white font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(27,95,174,0.4)] transition-all text-xs font-display">
+        <button onClick={() => toast.success('Smart Suggestion: Coba seimbangkan roster hari Jumat karena resiko lembur tinggi.', { icon: <Lightbulb className="w-4 h-4 text-psy-warning" /> })} className="w-full bg-gradient-to-r from-accent-primary to-primary text-white font-bold py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(27,95,174,0.4)] transition-all text-xs font-display">
           <Settings2 className="w-4 h-4 shrink-0" />
-          <span className={cn("transition-all duration-300 whitespace-nowrap", isSidebarCollapsed ? "opacity-0 w-0" : "opacity-100")}>✨ Smart Suggestion</span>
+          <span className={cn("transition-all duration-300 whitespace-nowrap flex items-center gap-1.5", isSidebarCollapsed ? "opacity-0 w-0" : "opacity-100")}><Sparkles className="w-3.5 h-3.5 text-yellow-300" /> Smart Suggestion</span>
         </button>
 
         <div className={cn("grid gap-2 transition-all duration-300", isSidebarCollapsed ? "grid-cols-1" : "grid-cols-2")}>
