@@ -1,28 +1,204 @@
 import { useHRStore } from '@/store/useHRStore'
-import { Users, CalendarClock, BrainCircuit, AlertCircle, ChevronRight, AlertTriangle, Wallet, Activity, Sparkles } from 'lucide-react'
+import { Users, BrainCircuit, AlertTriangle, Activity, Sparkles, Clock, DollarSign, Flame, UserCheck, TrendingUp, Shield, Info } from 'lucide-react'
 import { TiltCard } from '@/components/motion/TiltCard'
 import { toast } from 'sonner'
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
+import { sound } from '@/lib/sound'
+import { useNavigate } from 'react-router-dom'
+import { Tooltip } from '@/components/ui/Tooltip'
+import { BRANCH_PROFILES } from '@/lib/branches'
+
+// Shift schedule config: [startHour, endHour]
+const SHIFT_SCHEDULE: Record<string, [number, number]> = {
+  'Pagi': [8, 17],
+  'Sore': [14, 23],
+  'Closing': [16, 1], // next day
+}
+
+function useShiftCountdown() {
+  const [now, setNow] = useState(new Date())
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const currentHour = now.getHours()
+  const currentMinute = now.getMinutes()
+  const currentSecond = now.getSeconds()
+  const totalCurrentSeconds = currentHour * 3600 + currentMinute * 60 + currentSecond
+
+  let activeShiftName = 'Tidak Ada Shift'
+  let remainingLabel = '--'
+  let remainingPercent = 0
+
+  for (const [name, [start, end]] of Object.entries(SHIFT_SCHEDULE)) {
+    const startSec = start * 3600
+    let endSec = end * 3600
+    // Closing shift crosses midnight
+    if (name === 'Closing') {
+      const isInShift = currentHour >= 16 || currentHour < 1
+      if (isInShift) {
+        activeShiftName = name
+        const totalDuration = (24 - 16 + 1) * 3600 // 9 jam
+        let remaining: number
+        if (currentHour >= 16) {
+          remaining = totalDuration - (totalCurrentSeconds - startSec)
+        } else {
+          remaining = endSec - totalCurrentSeconds
+        }
+        if (remaining > 0) {
+          const hrs = Math.floor(remaining / 3600)
+          const mins = Math.floor((remaining % 3600) / 60)
+          remainingLabel = `${hrs}j ${mins}m`
+          remainingPercent = Math.max(0, Math.min(100, 100 - (remaining / totalDuration) * 100))
+        }
+        break
+      }
+    } else {
+      if (totalCurrentSeconds >= startSec && totalCurrentSeconds < endSec) {
+        activeShiftName = name
+        const totalDuration = endSec - startSec
+        const elapsed = totalCurrentSeconds - startSec
+        const remaining = totalDuration - elapsed
+        if (remaining > 0) {
+          const hrs = Math.floor(remaining / 3600)
+          const mins = Math.floor((remaining % 3600) / 60)
+          remainingLabel = `${hrs}j ${mins}m`
+          remainingPercent = Math.max(0, Math.min(100, (elapsed / totalDuration) * 100))
+        }
+        break
+      }
+    }
+  }
+
+  return { activeShiftName, remainingLabel, remainingPercent, now }
+}
 
 export function ManagerDashboard() {
   const employees = useHRStore(state => state.employees)
   const auditLogs = useHRStore(state => state.auditLogs)
+  const attendances = useHRStore(state => state.attendances)
   const autoBalanceShifts = useHRStore(state => state.autoBalanceShifts)
-  const autoFillShifts = useHRStore(state => state.autoFillShifts)
   const addAuditLog = useHRStore(state => state.addAuditLog)
+  const handoverNotes = useHRStore(state => state.handoverNotes)
+  const navigate = useNavigate()
+
+  const { activeShiftName, remainingLabel, now } = useShiftCountdown()
+
   const headcount = employees.length
 
   const highRiskEmployees = useMemo(() => {
     return employees.filter(e => (e.attritionRisk || 0) > 40)
   }, [employees])
 
+  const onDutyEmployees = useMemo(() => {
+    return attendances.filter(a => a.timeIn !== '--:--' && a.timeOut === '--:--')
+  }, [attendances])
+
+  // Total monthly estimated labor cost
+  const monthlyLaborCost = useMemo(() => {
+    return employees.reduce((total, emp) => {
+      const base = emp.baseSalary
+      const overtime = emp.overtimeHours * emp.rate * 4 // weekly avg * 4
+      const night = emp.nightShiftsMonth * 50000
+      const grossSalary = base + overtime + night
+      return total + grossSalary
+    }, 0)
+  }, [employees])
+
+  const weeklyLaborCost = monthlyLaborCost / 4
+
+  // Estimated revenue (cafe context: ~Rp 85k avg order * 150 customers * 7 days / week)
+  const estimatedWeeklyRevenue = 85000 * 150 * 7
+  const laborCostRatioPercent = Math.round((weeklyLaborCost / estimatedWeeklyRevenue) * 100)
+  const laborRatioStatus = laborCostRatioPercent < 25 ? 'Sehat' : laborCostRatioPercent < 35 ? 'Waspada' : 'Kritis'
+  const laborRatioColor = laborCostRatioPercent < 25 ? 'text-psy-safe-text' : laborCostRatioPercent < 35 ? 'text-semantic-warning' : 'text-error'
+  const laborRatioBg = laborCostRatioPercent < 25 ? 'bg-psy-safe-bg' : laborCostRatioPercent < 35 ? 'bg-semantic-warning/10' : 'bg-error/10'
+
+  // Rush hour detection
+  const currentHour = now.getHours()
+  const isRushHour = (currentHour >= 11 && currentHour < 14) || (currentHour >= 17 && currentHour < 20)
+  const nextRushHour = currentHour < 12 ? '12:00 - 14:00' : currentHour < 18 ? '18:00 - 20:00' : 'Besok 12:00'
+
+  const urgentNotes = handoverNotes.filter(n => n.priority === 'urgent')
+
+  const activeBranch = useHRStore(state => state.activeBranch)
+  const currentBranch = BRANCH_PROFILES[activeBranch] || BRANCH_PROFILES['Senopati (HQ)']
+
   return (
-    <>
+    <div className="space-y-6">
+      {/* Real-time Operational Barometer Bar */}
+      <div className="glass-panel p-5 rounded-3xl border border-outline bg-gradient-to-r from-surface to-surface-container flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-psy-safe/10 border border-psy-safe/30 flex items-center justify-center text-psy-safe">
+            <Activity className="w-5 h-5 animate-pulse" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-sm text-on-surface font-display">Operasional {currentBranch.name}</h3>
+              <Tooltip content={`Status live cabang: ${currentBranch.status}. Target staf: ${currentBranch.staffTarget}`}>
+                <span className="px-2 py-0.5 rounded-full bg-psy-safe-bg text-psy-safe-text text-[10px] font-bold uppercase font-mono cursor-help">
+                  {currentBranch.status}
+                </span>
+              </Tooltip>
+            </div>
+            <p className="text-xs text-on-surface-variant mt-0.5">
+              Shift Aktif: <strong className="text-on-surface">
+                {activeShiftName !== 'Tidak Ada Shift' ? `Shift ${activeShiftName}` : 'Di Luar Jam Operasional'}
+              </strong> • {onDutyEmployees.length} staf bertugas di lantai kedai • <span className="font-mono text-[10px] opacity-70">{currentBranch.address}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
+          <Tooltip content="Hitung mundur sisa waktu durasi shift operasional aktif saat ini">
+            <div className="p-2.5 rounded-xl bg-surface-container-lowest border border-outline flex items-center gap-2 cursor-help">
+              <Clock className="w-4 h-4 text-accent-primary" />
+              <span>
+                {activeShiftName !== 'Tidak Ada Shift'
+                  ? <>Shift {activeShiftName}: <strong className="text-on-surface">Sisa {remainingLabel}</strong></>
+                  : <strong className="text-on-surface-variant">Semua Shift Selesai</strong>
+                }
+              </span>
+            </div>
+          </Tooltip>
+
+          <Tooltip content={isRushHour ? 'Saat ini jam sibuk kedai sedang aktif. Pastikan semua barista & kasir di posisi.' : 'Estimasi jam sibuk berikutnya berdasarkan pola transaksi kedai.'}>
+            <div className={`p-2.5 rounded-xl border flex items-center gap-2 cursor-help ${isRushHour ? 'bg-error/10 border-error/30' : 'bg-surface-container-lowest border-outline'}`}>
+              <Flame className={`w-4 h-4 ${isRushHour ? 'text-error animate-pulse' : 'text-semantic-warning'}`} />
+              <span>
+                {isRushHour ? <><strong className="text-error">Rush Hour AKTIF!</strong></> : <>Rush Hour: <strong className="text-semantic-warning">{nextRushHour}</strong></>}
+              </span>
+            </div>
+          </Tooltip>
+
+          {urgentNotes.length > 0 && (
+            <Tooltip content="Terdapat catatan serah terima dengan prioritas urgent yang butuh perhatian manajer">
+              <button
+                onClick={() => { sound.playClick(); navigate('/attendance') }}
+                className="p-2.5 rounded-xl bg-semantic-warning/10 border border-semantic-warning/30 flex items-center gap-2 cursor-pointer hover:bg-semantic-warning/20 transition-colors"
+              >
+                <AlertTriangle className="w-4 h-4 text-semantic-warning" />
+                <span className="text-semantic-warning font-bold">{urgentNotes.length} Catatan Urgent</span>
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      </div>
+
+      {/* 4 Core Metric KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        {/* Headcount */}
         <TiltCard className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-outline hover:border-accent-primary/50 transition-colors shadow-sm">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mb-1">Total Headcount Tim</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mb-1">Total Headcount Tim</p>
+                <Tooltip content="Total kapasitas tim yang terdaftar vs batas maksimum struktur organisasi kedai (20 staf).">
+                  <Info className="w-3.5 h-3.5 text-on-surface-variant cursor-help mb-1" />
+                </Tooltip>
+              </div>
               <h3 className="text-4xl font-bold text-on-surface mt-1 font-display">
                 {headcount} <span className="text-base text-on-surface-variant font-semibold">/ 20</span>
               </h3>
@@ -33,43 +209,60 @@ export function ManagerDashboard() {
           </div>
           <div>
             <div className="flex justify-between text-xs text-on-surface-variant font-semibold mb-2">
-              <span>Kapasitas Kedai</span>
-              <span className="text-accent-primary font-bold">75%</span>
+              <span>Kapasitas Roster</span>
+              <span className="text-accent-primary font-bold">{Math.round((headcount / 20) * 100)}% Terisi</span>
             </div>
             <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-              <div className="bg-gradient-to-r from-accent-primary to-primary h-full rounded-full transition-all duration-1000 ease-out" style={{ width: '75%' }}></div>
+              <div className="bg-gradient-to-r from-accent-primary to-primary h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${(headcount / 20) * 100}%` }} />
             </div>
           </div>
         </TiltCard>
 
+        {/* Labor Cost Barometer */}
         <TiltCard className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-outline hover:border-tertiary/50 transition-colors shadow-sm">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mb-1">Shift Terisi Minggu Ini</p>
-              <h3 className="text-4xl font-bold text-on-surface mt-1 font-display">
-                42 <span className="text-base text-on-surface-variant font-semibold">/ 75</span>
+              <div className="flex items-center gap-1">
+                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mb-1">Labor Cost Ratio</p>
+                <Tooltip content="Rasio biaya tenaga kerja mingguan terhadap proyeksi omzet kedai (Standar F&B: <25% Sehat, 25-35% Waspada, >35% Kritis).">
+                  <Info className="w-3.5 h-3.5 text-on-surface-variant cursor-help mb-1" />
+                </Tooltip>
+              </div>
+              <h3 className="text-3xl font-bold text-on-surface mt-1 font-display">
+                {laborCostRatioPercent}%{' '}
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md font-mono ${laborRatioColor} ${laborRatioBg}`}>
+                  {laborRatioStatus}
+                </span>
               </h3>
             </div>
             <div className="p-3.5 bg-tertiary/10 rounded-2xl text-tertiary">
-              <CalendarClock className="w-6 h-6" />
+              <DollarSign className="w-6 h-6" />
             </div>
           </div>
           <div>
             <div className="flex justify-between text-xs text-on-surface-variant font-semibold mb-2">
-              <span>Status Pemenuhan Jadwal</span>
-              <span className="text-tertiary font-bold">Optimum (85%)</span>
+              <span>Estimasi Gaji Minggu Ini</span>
+              <span className="text-on-surface font-mono font-bold">Rp {Math.round(weeklyLaborCost).toLocaleString('id-ID')}</span>
             </div>
-            <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden flex gap-0.5">
-              <div className="bg-gradient-to-r from-tertiary to-tertiary-container h-full rounded-l-full transition-all duration-1000 ease-out" style={{ width: '85%' }}></div>
-              <div className="bg-error/80 h-full rounded-r-full transition-all duration-1000 ease-out" style={{ width: '15%' }}></div>
+            <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-1000 ease-out ${laborCostRatioPercent < 25 ? 'bg-gradient-to-r from-psy-safe to-psy-safe/60' : laborCostRatioPercent < 35 ? 'bg-gradient-to-r from-semantic-warning to-semantic-warning/60' : 'bg-gradient-to-r from-error to-error/60'}`}
+                style={{ width: `${Math.min(laborCostRatioPercent * 2, 100)}%` }}
+              />
             </div>
           </div>
         </TiltCard>
 
+        {/* Attrition Risk */}
         <TiltCard className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-error/20 bg-error/5 hover:border-error/40 transition-colors shadow-sm">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <p className="text-xs text-error font-bold uppercase tracking-wider mb-1">Attrition Risk</p>
+              <div className="flex items-center gap-1">
+                <p className="text-xs text-error font-bold uppercase tracking-wider mb-1">Attrition / Fatigue Risk</p>
+                <Tooltip content="Pencegahan risiko kelelahan dan burnout berdasarkan akumulasi shift malam dan lembur beruntun.">
+                  <Info className="w-3.5 h-3.5 text-error cursor-help mb-1" />
+                </Tooltip>
+              </div>
               <h3 className="text-4xl font-bold text-error mt-1 font-display">
                 {highRiskEmployees.length} <span className="text-base text-error/70 font-semibold">Staf</span>
               </h3>
@@ -79,227 +272,168 @@ export function ManagerDashboard() {
             </div>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-on-surface-variant mb-2">Risiko Tinggi Berhenti:</p>
+            <p className="text-[11px] font-semibold text-on-surface-variant mb-2">Risiko Tinggi Kelelahan:</p>
             <div className="space-y-2">
               {highRiskEmployees.slice(0, 2).map(e => (
-                <div key={e.id} className="flex items-center gap-3 p-2 bg-surface rounded-xl border border-error/10 shadow-sm">
-                  <img src={e.avatar} alt={e.name} className="w-8 h-8 rounded-full object-cover border border-error/20" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold text-on-surface truncate">{e.name}</p>
-                    <p className="text-[10px] text-error truncate">{e.attritionFactors?.[0]}</p>
+                <Tooltip key={e.id} content={`Penyebab: ${(e.attritionFactors || []).join(', ')} • Skor Risiko: ${e.attritionRisk}%`}>
+                  <div className="flex items-center gap-3 p-2 bg-surface rounded-xl border border-error/10 shadow-sm cursor-help w-full">
+                    <img src={e.avatar} alt={e.name} className="w-8 h-8 rounded-full object-cover border border-error/20" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-bold text-on-surface truncate">{e.name}</p>
+                      <p className="text-[10px] text-error truncate">{e.attritionFactors?.[0]}</p>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-error bg-error/10 px-2 py-1 rounded-lg">{e.attritionRisk}%</span>
                   </div>
-                  <span className="text-[10px] font-mono font-bold text-error bg-error/10 px-2 py-1 rounded-lg">{e.attritionRisk}%</span>
-                </div>
+                </Tooltip>
               ))}
               {highRiskEmployees.length === 0 && (
-                <div className="text-center py-2 text-xs text-on-surface-variant italic">Semua staf aman.</div>
+                <div className="text-center py-2 text-xs text-psy-safe-text font-bold">Semua kru berada dalam kondisi aman.</div>
               )}
             </div>
           </div>
         </TiltCard>
 
-        <TiltCard className="glass-panel rounded-3xl p-6 border-2 border-accent-primary/20 bg-gradient-to-br from-accent-primary/5 to-surface-container flex flex-col justify-between hover:border-accent-primary/40 transition-all shadow-[0_4px_20px_rgba(27,95,174,0.05)]">
+        {/* AI Auto-Balance */}
+        <TiltCard className="glass-panel rounded-3xl p-6 border-2 border-accent-primary/20 bg-gradient-to-br from-accent-primary/5 to-surface-container flex flex-col justify-between hover:border-accent-primary/40 transition-all shadow-sm">
           <div>
-            <div className="flex items-center gap-2 mb-4 bg-surface w-fit px-3 py-1.5 rounded-full text-[11px] text-accent-primary font-bold shadow-sm border border-accent-primary/10">
-              <span className="w-2 h-2 rounded-full bg-accent-primary animate-pulse"></span>
+            <div className="flex items-center gap-2 mb-3 bg-surface w-fit px-3 py-1 rounded-full text-[11px] text-accent-primary font-bold shadow-sm border border-accent-primary/10">
+              <span className="w-2 h-2 rounded-full bg-accent-primary animate-pulse" />
               <BrainCircuit className="w-4 h-4" />
               <span>AI Anomaly Insight</span>
             </div>
-            <p className="text-[13px] text-on-surface leading-relaxed mb-4 font-medium">
-              "Biaya lembur naik <strong className="text-semantic-warning font-bold">23%</strong> minggu ini. Analisis: 4 dari 6 lembur terkonsentrasi pada tim shift malam Sabtu akibat penumpukan pesanan."
+            <p className="text-xs text-on-surface leading-relaxed mb-3 font-medium">
+              Biaya lembur terdeteksi naik <strong className="text-semantic-warning font-bold">23%</strong> minggu ini akibat shift malam beruntun.
             </p>
-            <div className="p-3 rounded-2xl bg-surface border border-accent-primary/20 text-[11px] text-on-surface-variant shadow-sm mb-4">
-              <p className="leading-relaxed"><Sparkles className="w-4 h-4 inline-block text-accent-primary mr-1 mb-0.5" /> <strong>Rekomendasi AI:</strong> Dialihkan ke Dimas Prasetyo & Budi Santoso untuk menghemat estimasi <strong>Rp 975.000 / minggu</strong>.</p>
+            <div className="p-3 rounded-2xl bg-surface border border-accent-primary/20 text-[11px] text-on-surface-variant shadow-sm mb-3">
+              <p className="leading-relaxed"><Sparkles className="w-3.5 h-3.5 inline-block text-accent-primary mr-1" /> Rekomendasi: Seimbangkan shift malam untuk hemat estimasi <strong>Rp 975.000</strong>.</p>
             </div>
           </div>
-          <button
-            onClick={() => {
-              autoBalanceShifts()
-              addAuditLog({ user: 'System AI', action: 'Shift Auto-Balance', detail: 'Mengalihkan shift lembur untuk staf risiko tinggi' })
-              toast.success("Shift berhasil diseimbangkan secara otomatis!", {
-                description: "Estimasi penghematan: Rp 975.000",
-                icon: <Sparkles className="w-4 h-4 text-accent-primary" />,
-                action: { label: 'Lihat Kalender', onClick: () => window.location.hash = '#/calendar' }
-              })
-            }}
-            className="w-full py-3 px-4 rounded-xl bg-accent-primary text-white hover:bg-accent-primary/90 hover:shadow-lg hover:shadow-accent-primary/20 font-bold text-xs transition-all font-display active:scale-[0.98]"
-          >
-            Auto-Balance Shift Lembur
-          </button>
+          <Tooltip content="AI otomatis membagi ulang shift lembur staf berisiko ke staf yang memiliki kapasitas jam kerja">
+            <button
+              onClick={() => {
+                sound.playSuccess()
+                autoBalanceShifts()
+                addAuditLog({ user: 'System AI', action: 'Shift Auto-Balance', detail: 'Mengalihkan shift lembur untuk staf risiko tinggi' })
+                toast.success("Shift berhasil diseimbangkan secara otomatis!", {
+                  description: "Estimasi penghematan: Rp 975.000",
+                  action: { label: 'Lihat Kalender', onClick: () => navigate('/calendar') }
+                })
+              }}
+              className="w-full py-2.5 px-4 rounded-xl bg-accent-primary text-white hover:bg-accent-primary/90 hover:shadow-lg font-bold text-xs transition-all font-display cursor-pointer"
+            >
+              Auto-Balance Shift AI
+            </button>
+          </Tooltip>
         </TiltCard>
       </div>
 
+      {/* On-Duty Staff & Handover Notes Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="glass-panel p-6 border border-outline rounded-2xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-on-surface text-lg font-display">Aktivitas Terkini</h3>
-              <button onClick={() => window.location.hash = '#/calendar'} className="text-xs text-accent-primary font-bold hover:underline">Lihat Semua</button>
+        {/* On-Duty Staff on Floor */}
+        <div className="glass-panel p-6 border border-outline rounded-3xl space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <UserCheck className="w-5 h-5 text-accent-primary" />
+              <h3 className="font-bold text-on-surface text-base font-display">Staf di Lantai (On-Duty)</h3>
             </div>
-            <div className="space-y-3">
-              {auditLogs.map((log, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors border border-transparent hover:border-outline">
+            <Tooltip content="Jumlah staf yang telah check-in presensi GPS dan sedang bertugas di kedai">
+              <span className="px-2.5 py-0.5 rounded-full bg-psy-safe-bg text-psy-safe-text text-xs font-bold font-mono cursor-help">
+                {onDutyEmployees.length} Hadir
+              </span>
+            </Tooltip>
+          </div>
+
+          <div className="space-y-2.5">
+            {onDutyEmployees.map((record) => (
+              <Tooltip key={record.id} content={`Check-in: ${record.timeIn} WIB • Status: ${record.geofence} • Koordinat: ${record.coordinates || '-6.2289, 106.8021'}`}>
+                <div className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-low border border-outline cursor-help w-full">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-accent-primary/10 flex items-center justify-center text-accent-primary shrink-0">
+                    <div className="relative">
+                      <img src={record.avatar} alt={record.name} className="w-9 h-9 rounded-xl object-cover" />
+                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-psy-safe border-2 border-surface" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-xs text-on-surface">{record.name}</p>
+                      <p className="text-[10px] text-on-surface-variant">{record.role}</p>
+                    </div>
+                  </div>
+                  <div className="text-right font-mono text-[11px]">
+                    <p className="font-bold text-on-surface">In: {record.timeIn}</p>
+                    <p className={`text-[10px] font-sans ${record.geofence.startsWith('Inside') ? 'text-psy-safe-text' : 'text-error'}`}>
+                      {record.geofence.startsWith('Inside') ? 'HQ Valid' : 'Di Luar Area'}
+                    </p>
+                  </div>
+                </div>
+              </Tooltip>
+            ))}
+            {onDutyEmployees.length === 0 && (
+              <div className="text-center py-6 text-xs text-on-surface-variant font-semibold">
+                <Shield className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                Belum ada staf check-in hari ini
+              </div>
+            )}
+          </div>
+
+          {/* Live Handover Urgent Notes */}
+          {urgentNotes.length > 0 && (
+            <div className="mt-2 pt-3 border-t border-outline">
+              <p className="text-[10px] font-bold text-semantic-warning uppercase tracking-wider mb-2 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" /> Catatan Handover Urgent
+              </p>
+              {urgentNotes.slice(0, 1).map(note => (
+                <div key={note.id} className="p-2.5 rounded-xl bg-semantic-warning/10 border border-semantic-warning/30 text-[11px] text-on-surface">
+                  <p className="font-bold text-semantic-warning text-[10px]">{note.author} — {note.shift}</p>
+                  <p className="leading-relaxed mt-0.5">{note.note}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Audit Log Activities */}
+        <div className="lg:col-span-2 glass-panel p-6 border border-outline rounded-3xl">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-on-surface text-base font-display">Log Aktivitas & Audit Trail</h3>
+            <div className="flex items-center gap-2">
+              <Tooltip content="Jumlah aktivitas perubahan jadwal & tindakan operasional yang tersimpan di log audit">
+                <span className="text-[10px] font-mono text-on-surface-variant bg-surface-container px-2 py-1 rounded-lg border border-outline cursor-help">
+                  <TrendingUp className="w-3 h-3 inline mr-1" />{auditLogs.length} Entri
+                </span>
+              </Tooltip>
+              <button onClick={() => navigate('/calendar')} className="text-xs text-accent-primary font-bold hover:underline cursor-pointer">
+                Lihat Kalender
+              </button>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            {auditLogs.slice(0, 5).map((log, idx) => (
+              <Tooltip key={idx} content={`Eksekutor: ${log.user} • Waktu: ${log.timestamp} • Aksi: ${log.action}`}>
+                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-surface-container-low hover:bg-surface-container transition-colors border border-outline cursor-help w-full">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-accent-primary/10 flex items-center justify-center text-accent-primary shrink-0">
                       <BrainCircuit className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-on-surface">{log.action}</p>
-                      <p className="text-[11px] text-on-surface-variant font-medium">{log.detail} • <span className="font-semibold text-accent-primary">{log.user}</span></p>
+                      <p className="text-xs font-bold text-on-surface">{log.action}</p>
+                      <p className="text-[11px] text-on-surface-variant font-medium">
+                        {log.detail} • <span className="font-semibold text-accent-primary">{log.user}</span>
+                      </p>
                     </div>
                   </div>
-                  <span className="text-[10px] text-on-surface-variant font-mono bg-surface-container px-2 py-1 rounded-md shrink-0">{log.timestamp}</span>
+                  <span className="text-[10px] font-mono text-on-surface-variant font-semibold shrink-0">
+                    {log.timestamp}
+                  </span>
                 </div>
-              ))}
-              {auditLogs.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-10 text-on-surface-variant bg-surface-container-low/50 rounded-xl border border-dashed border-outline">
-                  <Activity className="w-10 h-10 mb-3 opacity-20" />
-                  <p className="text-sm font-semibold">Belum Ada Aktivitas Terkini</p>
-                  <p className="text-[11px] mt-1 opacity-70">Aktivitas sistem dan tim akan muncul di sini.</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="glass-panel p-6 border border-outline rounded-2xl bg-gradient-to-br from-surface to-surface-container-lowest">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-on-surface text-lg font-display">Tim Bertugas Hari Ini</h3>
-              <span className="text-xs font-bold text-psy-safe bg-psy-safe-bg px-2 py-1 rounded-md">Shift Berjalan</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {employees.slice(0, 4).map(emp => (
-                <div key={emp.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low border border-outline hover:border-accent-primary/40 transition-colors cursor-pointer group">
-                  <img src={emp.avatar} alt={emp.name} className="w-10 h-10 rounded-full object-cover border border-outline group-hover:border-accent-primary/50" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-on-surface truncate group-hover:text-accent-primary transition-colors">{emp.name}</p>
-                    <p className="text-[10px] text-on-surface-variant uppercase tracking-wider">{emp.role}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-[10px] font-bold text-on-surface bg-surface-container-high px-2 py-1 rounded-md">
-                      Pagi
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="glass-panel p-6 border border-outline rounded-2xl bg-surface">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-on-surface text-lg font-display">Statistik Produktivitas</h3>
-              <span className="text-[10px] font-bold text-accent-primary bg-accent-primary/10 px-2 py-1 rounded-md">Minggu Ini</span>
-            </div>
-            <div className="flex items-end justify-between h-32 gap-2 mt-4 px-2">
-              {[
-                { day: 'Sen', value: 65, label: '65%' },
-                { day: 'Sel', value: 80, label: '80%' },
-                { day: 'Rab', value: 45, label: '45%' },
-                { day: 'Kam', value: 90, label: '90%' },
-                { day: 'Jum', value: 75, label: '75%' },
-                { day: 'Sab', value: 100, label: '100%' },
-                { day: 'Min', value: 85, label: '85%' },
-              ].map((item) => (
-                <div key={item.day} className="flex flex-col items-center gap-2 flex-1 group h-full justify-end">
-                  <div className="w-full max-w-[40px] bg-surface-container rounded-t-lg relative flex items-end justify-center h-full group-hover:bg-surface-container-high transition-colors">
-                    <div 
-                      className="w-full bg-gradient-to-t from-accent-primary to-primary rounded-t-lg transition-all duration-500 shadow-sm group-hover:shadow-[0_0_15px_rgba(27,95,174,0.3)] dark:group-hover:shadow-[0_0_15px_rgba(9,132,227,0.3)] group-hover:opacity-90 relative"
-                      style={{ height: `${item.value}%` }}
-                    >
-                      <span className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-on-surface opacity-0 group-hover:opacity-100 transition-opacity">
-                        {item.label}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">{item.day}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="glass-panel p-6 border border-outline rounded-2xl bg-gradient-to-b from-surface to-surface-container-lowest">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertCircle className="text-psy-warning w-5 h-5" />
-              <h3 className="font-bold text-on-surface font-display">Pending Actions</h3>
-            </div>
-            <div className="space-y-3">
-              <div className="p-3 bg-surface-container-low rounded-xl border border-outline flex justify-between items-center group cursor-pointer hover:border-accent-primary/50 transition-colors">
-                <div>
-                  <p className="text-xs font-bold text-on-surface">3 Request Swap Shift</p>
-                  <p className="text-[10px] text-on-surface-variant mt-0.5">Menunggu approval Anda</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-on-surface-variant group-hover:text-accent-primary transition-colors" />
+              </Tooltip>
+            ))}
+            {auditLogs.length === 0 && (
+              <div className="text-center py-8 text-xs text-on-surface-variant font-semibold">
+                Belum ada aktivitas tercatat
               </div>
-              <div className="p-3 bg-surface-container-low rounded-xl border border-outline flex justify-between items-center group cursor-pointer hover:border-accent-primary/50 transition-colors">
-                <div>
-                  <p className="text-xs font-bold text-on-surface">1 Pengajuan Cuti (Dimas)</p>
-                  <p className="text-[10px] text-on-surface-variant mt-0.5">Tumpang tindih jadwal</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-on-surface-variant group-hover:text-accent-primary transition-colors" />
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-panel p-6 border border-outline rounded-2xl">
-            <h3 className="font-bold text-on-surface font-display mb-4">Quick Shortcuts</h3>
-            <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => {
-                autoFillShifts()
-                toast.success("Roster Mingguan berhasil di-generate AI!")
-              }} className="p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline flex flex-col items-center justify-center gap-2 transition-colors">
-                <CalendarClock className="w-5 h-5 text-accent-primary" />
-                <span className="text-[10px] font-bold text-on-surface text-center">Buat Roster<br/>Mingguan</span>
-              </button>
-              <button onClick={() => {
-                window.location.hash = '#/payroll'
-              }} className="p-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline flex flex-col items-center justify-center gap-2 transition-colors">
-                <Wallet className="w-5 h-5 text-psy-safe" />
-                <span className="text-[10px] font-bold text-on-surface text-center">Generate<br/>Payroll</span>
-              </button>
-            </div>
-          </div>
-
-
-          <div className="glass-panel p-6 border border-outline rounded-2xl">
-            <h3 className="font-bold text-on-surface font-display mb-4 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-psy-safe animate-pulse"></span>
-              Live Kehadiran Hari Ini
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-on-surface-variant">Hadir Tepat Waktu</span>
-                  <span className="text-xs font-bold text-psy-safe">12 / 15</span>
-                </div>
-                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-psy-safe h-full rounded-full" style={{ width: '80%' }}></div>
-                </div>
-              </div>
-              
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-on-surface-variant">Terlambat</span>
-                  <span className="text-xs font-bold text-psy-warning">2 / 15</span>
-                </div>
-                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-psy-warning h-full rounded-full" style={{ width: '13%' }}></div>
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs font-semibold text-on-surface-variant">Absen / Sakit</span>
-                  <span className="text-xs font-bold text-psy-danger">1 / 15</span>
-                </div>
-                <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                  <div className="bg-psy-danger h-full rounded-full" style={{ width: '7%' }}></div>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
-    </>
+    </div>
   )
 }

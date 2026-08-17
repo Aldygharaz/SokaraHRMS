@@ -28,10 +28,12 @@ function ThemeSync() {
 }
 
 export default function App() {
+  const theme = useHRStore(state => state.theme)
+
   return (
     <BrowserRouter>
       <ThemeSync />
-      <Toaster position="top-right" richColors theme={useHRStore.getState().theme === 'dark' ? 'dark' : 'light'} />
+      <Toaster position="top-right" richColors theme={theme === 'dark' ? 'dark' : 'light'} />
       <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<Suspense fallback={<PageLoader />}><Dashboard /></Suspense>} />

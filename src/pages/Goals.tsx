@@ -3,6 +3,7 @@ import { Target, Trophy, TrendingUp, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TiltCard } from '@/components/motion/TiltCard'
 import { useMemo } from 'react'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export function Goals() {
   const employees = useHRStore(state => state.employees)
@@ -21,7 +22,7 @@ export function Goals() {
   }, [employees])
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div className="space-y-6">
       <div className="glass-panel spotlight-card p-6 md:p-8 rounded-3xl border-semantic-neutral/30 bg-gradient-to-r from-gradient-start to-surface dark:from-surface-container-low dark:to-surface-container">
         <div className="max-w-3xl space-y-3">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent-primary/20 border border-semantic-neutral/30 text-accent-primary text-xs font-bold uppercase tracking-wider">
@@ -36,10 +37,19 @@ export function Goals() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      {displayGoals.length === 0 ? (
+        <EmptyState
+          icon={Target}
+          title="Belum Ada Target OKR"
+          description={activeRole === 'manager' ? "Belum ada Key Result yang ditetapkan untuk tim." : "Belum ada target kinerja khusus yang ditugaskan ke akun Anda."}
+        />
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {displayGoals.map(goal => {
           const emp = employeeMap.get(goal.employeeId)
-          const percentage = Math.min(Math.round((goal.current / goal.target) * 100), 100)
+          const percentage = goal.target === 0 
+            ? (goal.current === 0 ? 100 : 0) 
+            : Math.min(Math.round((goal.current / goal.target) * 100), 100)
           
           let colorClass = "bg-accent-primary"
           let textColorClass = "text-accent-primary"
@@ -104,6 +114,7 @@ export function Goals() {
           )
         })}
       </div>
+      )}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { BottomNav } from './BottomNav'
 import { CommandPalette } from './CommandPalette'
 import { PlaygroundPanel } from '../demo/PlaygroundPanel'
 import { WelcomeBanner } from './WelcomeBanner'
+import { ShortcutModal } from './ShortcutModal'
 import { useHRStore } from '@/store/useHRStore'
 import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
@@ -49,6 +50,7 @@ export function AppLayout() {
       <CommandPalette />
       <PlaygroundPanel />
       <WelcomeBanner />
+      <ShortcutModal />
     </div>
   )
 }

@@ -98,14 +98,14 @@ function loadState() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return JSON.parse(saved);
-  } catch (e) {}
+  } catch {}
   return JSON.parse(JSON.stringify(DEFAULT_INITIAL_STATE));
 }
 
 function saveState() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {}
+  } catch {}
 }
 
 let state = loadState();
@@ -177,7 +177,7 @@ function playUiSound(type = 'click') {
       osc.start();
       osc.stop(ctx.currentTime + 0.3);
     }
-  } catch (e) {}
+  } catch {}
 }
 
 function setupAudioEngine() {
