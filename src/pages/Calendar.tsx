@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useHRStore } from '@/store/useHRStore'
-import { Printer, Wand2, Filter, Edit3, X, Scale, Send, Layers, Users, Sun, Sparkles, GraduationCap, CheckCheck } from 'lucide-react'
+import { Printer, Wand2, Filter, Edit3, X, Scale, Send, Layers, Users, Sun, Sparkles, GraduationCap, CheckCheck, Bookmark, DollarSign, Flame, Plus, Check, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { sound } from '@/lib/sound'
@@ -26,11 +26,17 @@ export function Calendar() {
   const publishRoster = useHRStore(state => state.publishRoster)
   const addAuditLog = useHRStore(state => state.addAuditLog)
   const updateShift = useHRStore(state => state.updateShift)
+  const shiftTemplates = useHRStore(state => state.shiftTemplates || {})
+  const saveShiftTemplate = useHRStore(state => state.saveShiftTemplate)
+  const applyShiftTemplate = useHRStore(state => state.applyShiftTemplate)
 
   const restoreSnapshot = useHRStore(state => state.restoreSnapshot)
   const [filter, setFilter] = useState('ALL')
   const [editTarget, setEditTarget] = useState<{empId: number, dayIdx: number, empName: string, currentShift: string, dayName: string} | null>(null)
   const [selectedCells, setSelectedCells] = useState<string[]>([])
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [newTemplateName, setNewTemplateName] = useState('')
+  const [selectedTemplateName, setSelectedTemplateName] = useState('Standar Operasional Regular')
   const [diffModal, setDiffModal] = useState<{
     proposedShifts: Record<number, string[]>
     newFairness: number
@@ -48,8 +54,10 @@ export function Calendar() {
     })
   }, [employees, filter, shifts])
 
-  // Headcount Capacity Metrics per day
-  const dayCapacities = useMemo(() => {
+  const currentBranch = BRANCH_PROFILES[activeBranch] || BRANCH_PROFILES['Senopati (HQ)']
+
+  // Headcount, Demand Forecast, & Labor Cost Metrics per day
+  const dayMetrics = useMemo(() => {
     return DAYS.map((_, dayIdx) => {
       const pagiCount = employees.filter(e => shifts[e.id]?.[dayIdx] === 'Pagi').length
       const soreCount = employees.filter(e => shifts[e.id]?.[dayIdx] === 'Sore').length
@@ -57,14 +65,52 @@ export function Calendar() {
       const totalActive = pagiCount + soreCount + closingCount
       const isUnderstaffed = pagiCount < 2 || soreCount < 2
 
+      let dailyLaborCost = 0
+      employees.forEach(emp => {
+        const s = shifts[emp.id]?.[dayIdx]
+        if (s === 'Pagi' || s === 'Sore' || s === 'Closing') {
+          dailyLaborCost += (emp.rate * 8)
+          if (s === 'Closing') {
+            dailyLaborCost += 50000
+          }
+        }
+      })
+
+      const targetRev = currentBranch.targetDailyRevenue?.[dayIdx] || 15000000
+      const laborRatio = targetRev > 0 ? Math.round((dailyLaborCost / targetRev) * 100) : 0
+      const forecast = currentBranch.dailyTrafficForecast?.[dayIdx] || { level: 'Sedang' as const, score: 60, peakTime: '12:00 - 14:00' }
+
       return {
         pagiCount,
         soreCount,
         closingCount,
         totalActive,
-        isUnderstaffed
+        isUnderstaffed,
+        dailyLaborCost,
+        targetRev,
+        laborRatio,
+        forecast
       }
     })
+  }, [employees, shifts, currentBranch])
+
+  const employeeWeeklyStats = useMemo(() => {
+    const map: Record<number, { totalHours: number, shiftDays: number, isOtRisk: boolean, otHours: number }> = {}
+    employees.forEach(emp => {
+      const empShifts = shifts[emp.id] || []
+      const activeShiftCount = empShifts.filter(s => s === 'Pagi' || s === 'Sore' || s === 'Closing').length
+      const baseHours = activeShiftCount * 8
+      const otHours = Math.max(0, baseHours - 40)
+      const isOtRisk = baseHours >= 40
+
+      map[emp.id] = {
+        totalHours: baseHours,
+        shiftDays: activeShiftCount,
+        isOtRisk,
+        otHours
+      }
+    })
+    return map
   }, [employees, shifts])
 
   const fairnessScore = useMemo(() => {
@@ -78,6 +124,38 @@ export function Calendar() {
     const score = 100 - (diff * 12)
     return Math.max(score, 0)
   }, [employees, shifts])
+
+  const handleApplyTemplate = (templateName: string) => {
+    sound.playSuccess()
+    const prevShifts = { ...shifts }
+    applyShiftTemplate(templateName)
+    addAuditLog({
+      user: 'Manager',
+      action: 'Apply Roster Template',
+      detail: `Menerapkan template roster: ${templateName}`
+    })
+    setShowTemplateModal(false)
+    toast.success(`Template "${templateName}" berhasil diterapkan!`, {
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          sound.playClick()
+          restoreSnapshot({ shifts: prevShifts })
+          toast.info("Penerapan template dibatalkan.")
+        }
+      }
+    })
+  }
+
+  const handleSaveNewTemplate = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newTemplateName.trim()) return
+    sound.playSuccess()
+    saveShiftTemplate(newTemplateName.trim())
+    toast.success(`Roster saat ini disimpan sebagai template "${newTemplateName.trim()}"!`)
+    setNewTemplateName('')
+  }
 
   const applyShift = useCallback((shiftType: string) => {
     if (!editTarget) return
@@ -271,6 +349,18 @@ export function Calendar() {
           
           {activeRole === 'manager' && (
             <>
+              <Tooltip content="Kelola template roster shift mingguan (Simpan & Terapkan template 1-klik)">
+                <button 
+                  onClick={() => {
+                    sound.playClick()
+                    setShowTemplateModal(true)
+                  }}
+                  className="bg-surface-container-high text-on-surface hover:text-accent-primary border border-outline text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Bookmark className="w-4 h-4 text-accent-primary" /> Template Roster
+                </button>
+              </Tooltip>
+
               <Tooltip content="Buka pratinjau komparasi AI untuk mengisi slot kosong dan melihat peningkatan Indeks Keadilan">
                 <button 
                   onClick={handleOpenAIDiffModal}
@@ -413,7 +503,7 @@ export function Calendar() {
                 <td className="p-3 pl-4 font-bold text-on-surface-variant flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-accent-primary" /> Kapasitas Shift
                 </td>
-                {dayCapacities.map((cap, idx) => (
+                {dayMetrics.map((cap, idx) => (
                   <td key={idx} className="p-2 text-center">
                     <Tooltip content={`Total Staf: ${cap.totalActive} orang (Pagi: ${cap.pagiCount}, Sore: ${cap.soreCount}, Closing: ${cap.closingCount}). ${cap.isUnderstaffed ? 'Perhatian: Minimum butuh 2 staf Pagi & 2 staf Sore!' : 'Kebutuhan staf terpenuhi secara ideal.'}`}>
                       <div className={cn(
@@ -445,31 +535,105 @@ export function Calendar() {
                   </td>
                 ))}
               </tr>
-            </thead>
 
-            <tbody className="divide-y divide-surface-container-high text-xs">
-              {filteredEmployees.map(emp => (
-                <tr key={emp.id} className="hover:bg-surface-container/60 transition-colors">
-                  <td className="p-4">
-                    <Tooltip content={`PTKP: ${emp.ptkp} • KAT ${emp.kat} • Performa: ${emp.rating}/5.0 • Ketepatan Waktu: ${emp.punctuality}%`}>
-                      <div className="flex items-center gap-3 cursor-help">
-                        <img src={emp.avatar} alt={emp.name} className="w-9 h-9 rounded-xl object-cover border border-outline" />
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-bold text-on-surface">{emp.name}</p>
-                            {emp.unavailability && emp.unavailability.length > 0 && (
-                              <Tooltip content={`Kru Part-time / Mahasiswa (Tidak bisa: ${emp.unavailability.map(u => `${u.dayName} - ${u.reason}`).join(', ')})`}>
-                                <span className="p-0.5 rounded bg-accent-primary/10 text-accent-primary cursor-help">
-                                  <GraduationCap className="w-3.5 h-3.5" />
-                                </span>
-                              </Tooltip>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-on-surface-variant">{emp.role}</p>
+              {/* Demand Forecasting Heatmap Row (Deputy Standard) */}
+              <tr className="bg-surface-container-low/80 border-b border-outline text-[11px]">
+                <td className="p-3 pl-4 font-bold text-on-surface-variant flex items-center gap-1.5">
+                  <Flame className="w-3.5 h-3.5 text-error" /> Prediksi Trafik
+                </td>
+                {dayMetrics.map((cap, idx) => (
+                  <td key={idx} className="p-2 text-center">
+                    <Tooltip content={`Prediksi Trafik: ${cap.forecast.level} (${cap.forecast.score}%) • Jam Puncak: ${cap.forecast.peakTime}`}>
+                      <div className="p-2 rounded-2xl bg-surface-container-lowest border border-outline font-mono text-[10px] space-y-1 cursor-help">
+                        <div className="flex justify-between items-center text-[9px]">
+                          <span className="font-bold text-on-surface">{cap.forecast.level}</span>
+                          <span className={cn(
+                            "font-bold",
+                            cap.forecast.score > 80 ? "text-error" : cap.forecast.score > 50 ? "text-semantic-warning" : "text-psy-safe-text"
+                          )}>{cap.forecast.score}%</span>
                         </div>
+                        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className={cn(
+                              "h-full rounded-full transition-all",
+                              cap.forecast.score > 80 ? "bg-error" : cap.forecast.score > 50 ? "bg-semantic-warning" : "bg-psy-safe"
+                            )}
+                            style={{ width: `${cap.forecast.score}%` }}
+                          />
+                        </div>
+                        <p className="text-[8px] text-on-surface-variant font-sans truncate">{cap.forecast.peakTime}</p>
                       </div>
                     </Tooltip>
                   </td>
+                ))}
+              </tr>
+
+              {/* Live Labor Cost Ratio Row (7shifts Standard) */}
+              <tr className="bg-surface-container-lowest border-b border-outline text-[11px]">
+                <td className="p-3 pl-4 font-bold text-on-surface-variant flex items-center gap-1.5">
+                  <DollarSign className="w-3.5 h-3.5 text-tertiary" /> Labor Cost %
+                </td>
+                {dayMetrics.map((cap, idx) => (
+                  <td key={idx} className="p-2 text-center">
+                    <Tooltip content={`Biaya Staf Harian: Rp ${cap.dailyLaborCost.toLocaleString('id-ID')} • Target Omzet: Rp ${cap.targetRev.toLocaleString('id-ID')} (Rasio: ${cap.laborRatio}% • Benchmark Sehat: <25%)`}>
+                      <div className={cn(
+                        "p-1.5 rounded-xl border font-mono text-[10px] cursor-help flex items-center justify-center gap-1.5",
+                        cap.laborRatio <= 22 ? "bg-psy-safe-bg/40 text-psy-safe-text border-psy-safe/30" :
+                        cap.laborRatio <= 28 ? "bg-surface-container-high text-on-surface border-outline" :
+                        "bg-psy-warning-bg/40 text-psy-warning-text border-psy-warning/30"
+                      )}>
+                        <span className="font-bold">{cap.laborRatio}%</span>
+                        <span className="text-[9px] opacity-70">Rp {(cap.dailyLaborCost / 1000).toFixed(0)}k</span>
+                      </div>
+                    </Tooltip>
+                  </td>
+                ))}
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-surface-container-high text-xs">
+              {filteredEmployees.map(emp => {
+                const stats = employeeWeeklyStats[emp.id] || { totalHours: 0, shiftDays: 0, isOtRisk: false, otHours: 0 }
+
+                return (
+                  <tr key={emp.id} className="hover:bg-surface-container/60 transition-colors">
+                    <td className="p-4">
+                      <Tooltip content={`PTKP: ${emp.ptkp} • KAT ${emp.kat} • Performa: ${emp.rating}/5.0 • Total Jam: ${stats.totalHours} Jam/Mgg (Batas regulasi: 40 Jam)`}>
+                        <div className="flex items-center gap-3 cursor-help">
+                          <img src={emp.avatar} alt={emp.name} className="w-9 h-9 rounded-xl object-cover border border-outline" />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-bold text-on-surface truncate">{emp.name}</p>
+                              {emp.unavailability && emp.unavailability.length > 0 && (
+                                <Tooltip content={`Kru Part-time / Mahasiswa (Tidak bisa: ${emp.unavailability.map(u => `${u.dayName} - ${u.reason}`).join(', ')})`}>
+                                  <span className="p-0.5 rounded bg-accent-primary/10 text-accent-primary cursor-help shrink-0">
+                                    <GraduationCap className="w-3.5 h-3.5" />
+                                  </span>
+                                </Tooltip>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-on-surface-variant truncate">{emp.role}</p>
+
+                            {/* Weekly Hours & Overtime Warning Badge */}
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span className={cn(
+                                "px-1.5 py-0.2 rounded-md font-mono text-[9px] font-bold",
+                                stats.totalHours < 36 ? "bg-psy-safe-bg text-psy-safe-text border border-psy-safe/30" :
+                                stats.totalHours < 40 ? "bg-psy-warning-bg text-psy-warning-text border border-psy-warning/30" :
+                                "bg-error/10 text-error border border-error/30 animate-pulse"
+                              )}>
+                                {stats.totalHours} Jam / Mgg
+                              </span>
+                              {stats.isOtRisk && (
+                                <span className="px-1.5 py-0.2 rounded-md bg-error text-white font-mono text-[8px] font-bold">
+                                  OT Risk (+{stats.otHours}j)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Tooltip>
+                    </td>
                   {(shifts[emp.id] || Array(7).fill('OFF')).map((shift, i) => {
                     const unavailInfo = emp.unavailability?.find(u => u.dayIdx === i)
                     const cellKey = `${emp.id}_${i}`
@@ -529,8 +693,9 @@ export function Calendar() {
                     )
                   })}
                 </tr>
-              ))}
-            </tbody>
+              )
+            })}
+          </tbody>
           </table>
         )}
       </div>
@@ -721,6 +886,109 @@ export function Calendar() {
             <div className="p-3 bg-surface-container-lowest border border-outline rounded-2xl text-[11px] text-on-surface-variant font-mono text-center">
               Tekan angka <kbd className="px-1.5 py-0.5 bg-surface-container rounded border border-outline font-bold">1</kbd>, <kbd className="px-1.5 py-0.5 bg-surface-container rounded border border-outline font-bold">2</kbd>, <kbd className="px-1.5 py-0.5 bg-surface-container rounded border border-outline font-bold">3</kbd>, <kbd className="px-1.5 py-0.5 bg-surface-container rounded border border-outline font-bold">4</kbd> di keyboard untuk penetapan instan.
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shift Template Modal (7shifts Standard) */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in"
+            onClick={() => setShowTemplateModal(false)}
+          />
+          <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-2xl p-6 md:p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between pb-4 border-b border-outline mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-accent-primary/10 text-accent-primary">
+                  <Bookmark className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-on-surface text-lg font-display">Template Roster Mingguan</h3>
+                  <p className="text-xs text-on-surface-variant">Simpan dan terapkan pola jadwal shift dengan cepat (1-klik template)</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowTemplateModal(false)}
+                className="p-2 hover:bg-surface-container-high rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4 text-on-surface-variant" />
+              </button>
+            </div>
+
+            {/* Template List */}
+            <div className="space-y-3 mb-6">
+              <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider">Template Tersedia:</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-1">
+                {Object.entries(shiftTemplates).map(([name, tmplShifts]) => {
+                  const staffCount = Object.keys(tmplShifts).length
+                  const isSelected = selectedTemplateName === name
+
+                  return (
+                    <div 
+                      key={name}
+                      onClick={() => setSelectedTemplateName(name)}
+                      className={cn(
+                        "p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-3",
+                        isSelected 
+                          ? "bg-accent-primary/5 border-accent-primary ring-1 ring-accent-primary" 
+                          : "bg-surface-container-low border-outline hover:border-accent-primary/40"
+                      )}
+                    >
+                      <div>
+                        <div className="flex justify-between items-start">
+                          <p className="font-bold text-xs text-on-surface">{name}</p>
+                          {isSelected && <Check className="w-4 h-4 text-accent-primary shrink-0" />}
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant mt-1">
+                          Pola {staffCount} staf • Standar terdistribusi
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-outline/50">
+                        <span className="text-[9px] font-mono text-accent-primary font-bold">
+                          7 Hari Rotasi
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleApplyTemplate(name)
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-accent-primary text-white font-bold text-[11px] hover:bg-accent-primary/90 transition-all cursor-pointer flex items-center gap-1"
+                        >
+                          <span>Terapkan</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Save Current Schedule as New Template */}
+            <form onSubmit={handleSaveNewTemplate} className="p-4 rounded-2xl bg-surface-container-lowest border border-outline space-y-3">
+              <h4 className="text-xs font-bold text-on-surface flex items-center gap-1.5">
+                <Plus className="w-4 h-4 text-accent-primary" /> Simpan Roster Saat Ini Sebagai Template Baru
+              </h4>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newTemplateName}
+                  onChange={(e) => setNewTemplateName(e.target.value)}
+                  placeholder="Misal: Template Libur Nasional / Ramadan Heavy Shift"
+                  className="flex-1 px-3.5 py-2.5 rounded-xl bg-surface border border-outline text-xs text-on-surface focus:outline-none focus:border-accent-primary font-medium"
+                />
+                <button
+                  type="submit"
+                  disabled={!newTemplateName.trim()}
+                  className="px-4 py-2.5 rounded-xl bg-accent-primary text-white font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed hover:bg-accent-primary/90 transition-all cursor-pointer shrink-0"
+                >
+                  Simpan Template
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

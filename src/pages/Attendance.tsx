@@ -1,6 +1,6 @@
 import { useHRStore } from '@/store/useHRStore'
 import { TiltCard } from '@/components/motion/TiltCard'
-import { MapPin, Clock, Download, CheckCircle2, AlertCircle, Camera, Navigation, Radio, Check, X, Compass, Coffee, Zap, BatteryLow, MessageSquarePlus, Send, AlertTriangle, Play, Pause, Activity, Copy, ClipboardCheck, CheckSquare, Square } from 'lucide-react'
+import { MapPin, Clock, Download, CheckCircle2, AlertCircle, Camera, Navigation, Radio, Check, X, Compass, Coffee, Zap, BatteryLow, MessageSquarePlus, Send, AlertTriangle, Play, Pause, Activity, Copy, ClipboardCheck, CheckSquare, Square, ShieldCheck, FileCheck2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useState, useEffect, useMemo } from 'react'
@@ -29,12 +29,22 @@ export function Attendance() {
   const setEmployeeMood = useHRStore(state => state.setEmployeeMood)
   const sopTasks = useHRStore(state => state.sopTasks)
   const toggleSopTask = useHRStore(state => state.toggleSopTask)
+  const addAttestationRecord = useHRStore(state => state.addAttestationRecord)
+  const addAuditLog = useHRStore(state => state.addAuditLog)
 
   const currentBranch = BRANCH_PROFILES[activeBranch] || BRANCH_PROFILES['Senopati (HQ)']
 
   const [currentTime, setCurrentTime] = useState(new Date())
   const [gpsModal, setGpsModal] = useState<{ name: string, coords: string, geofence: string } | null>(null)
   const [mockDistance, setMockDistance] = useState(25) // meters from HQ
+
+  // Active Attestation Clock-Out State
+  const [showAttestationModal, setShowAttestationModal] = useState(false)
+  const [attestationForm, setAttestationForm] = useState({
+    hadBreak: true,
+    isFit: true,
+    notes: ''
+  })
 
   // SOP Checklist State
   const [activeSopTab, setActiveSopTab] = useState<'Pagi' | 'Closing'>('Pagi')
@@ -105,10 +115,35 @@ export function Attendance() {
   }
 
   const handleClockOut = () => {
+    sound.playClick()
+    setShowAttestationModal(true)
+  }
+
+  const handleConfirmAttestationClockOut = () => {
+    if (!activeEmployee) return
     sound.playSuccess()
+
+    addAttestationRecord({
+      employeeId: activeEmployeeId,
+      employeeName: activeEmployee.name,
+      date: 'Hari Ini',
+      hadBreak: attestationForm.hadBreak,
+      isFit: attestationForm.isFit,
+      shiftConfirmed: true,
+      notes: attestationForm.notes
+    })
+
+    addAuditLog({
+      user: activeEmployee.name,
+      action: 'Clock-Out Attestation',
+      detail: `Attestation Selesai: Break ${attestationForm.hadBreak ? 'Ya' : 'Tidak'}, K3 Fit ${attestationForm.isFit ? 'Ya' : 'Tidak'}`
+    })
+
     recordAttendance(activeEmployeeId, 'out')
-    toast.success("Clock-out Berhasil Dicatat!", {
-      description: `Waktu Pulang: ${currentTime.toLocaleTimeString('id-ID')}`
+    setShowAttestationModal(false)
+
+    toast.success("Clock-out Berhasil & Attestation Tercatat!", {
+      description: `Waktu Pulang: ${currentTime.toLocaleTimeString('id-ID')} • Compliance Verified`
     })
   }
 
@@ -821,6 +856,122 @@ export function Attendance() {
             >
               Buka di Google Maps
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Active Attestation Clock-Out Modal (Deputy Standard) */}
+      {showAttestationModal && activeEmployee && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowAttestationModal(false)} />
+          <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-lg p-6 md:p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start border-b border-outline pb-4 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-psy-safe-bg text-psy-safe-text rounded-2xl border border-psy-safe/30">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold font-display text-lg text-on-surface">Active Attestation & Clock-Out</h3>
+                  <p className="text-xs text-on-surface-variant">Konfirmasi regulasi ketenagakerjaan & K3 sebelum mengakhiri shift</p>
+                </div>
+              </div>
+              <button onClick={() => setShowAttestationModal(false)} className="p-2 hover:bg-surface-container-high rounded-full cursor-pointer">
+                <X className="w-4 h-4 text-on-surface-variant" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs">
+              {/* Question 1: Break Time */}
+              <div 
+                onClick={() => {
+                  sound.playClick()
+                  setAttestationForm(prev => ({ ...prev, hadBreak: !prev.hadBreak }))
+                }}
+                className={cn(
+                  "p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3",
+                  attestationForm.hadBreak 
+                    ? "bg-psy-safe-bg/60 border-psy-safe/40 text-on-surface" 
+                    : "bg-surface-container-lowest border-outline text-on-surface-variant"
+                )}
+              >
+                <div className={cn(
+                  "w-5 h-5 rounded-lg border flex items-center justify-center mt-0.5 shrink-0 transition-colors",
+                  attestationForm.hadBreak ? "bg-psy-safe text-white border-psy-safe" : "border-outline bg-surface"
+                )}>
+                  {attestationForm.hadBreak && <Check className="w-3.5 h-3.5" />}
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-on-surface">1. Hak Waktu Istirahat (Break Compliance)</p>
+                  <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                    Saya menyatakan telah mengambil hak waktu istirahat minimal 30–60 menit tanpa gangguan operasional kerja selama shift berlangsung.
+                  </p>
+                </div>
+              </div>
+
+              {/* Question 2: Health & Safety */}
+              <div 
+                onClick={() => {
+                  sound.playClick()
+                  setAttestationForm(prev => ({ ...prev, isFit: !prev.isFit }))
+                }}
+                className={cn(
+                  "p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3",
+                  attestationForm.isFit 
+                    ? "bg-psy-safe-bg/60 border-psy-safe/40 text-on-surface" 
+                    : "bg-surface-container-lowest border-outline text-on-surface-variant"
+                )}
+              >
+                <div className={cn(
+                  "w-5 h-5 rounded-lg border flex items-center justify-center mt-0.5 shrink-0 transition-colors",
+                  attestationForm.isFit ? "bg-psy-safe text-white border-psy-safe" : "border-outline bg-surface"
+                )}>
+                  {attestationForm.isFit && <Check className="w-3.5 h-3.5" />}
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-on-surface">2. Kondisi Fisik & Keselamatan Kerja (K3)</p>
+                  <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">
+                    Saya mengakhiri shift dalam kondisi fisik sehat dan tidak mengalami insiden/kecelakaan kerja di area operasional kedai.
+                  </p>
+                </div>
+              </div>
+
+              {/* Shift Notes / Handover feedback */}
+              <div className="space-y-1.5 pt-1">
+                <label className="text-xs font-bold text-on-surface block">
+                  3. Catatan Akhir Shift / Handover (Opsional)
+                </label>
+                <textarea
+                  value={attestationForm.notes}
+                  onChange={(e) => setAttestationForm(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Contoh: Stok susu aman, mesin espresso sudah dibackflush dan disanitasi..."
+                  className="w-full p-3 rounded-2xl bg-surface-container-lowest border border-outline text-xs text-on-surface focus:outline-none focus:border-accent-primary min-h-[70px] resize-none"
+                />
+              </div>
+
+              {/* Compliance Legal Footer */}
+              <div className="p-3 bg-surface-container-low rounded-2xl border border-outline text-[10px] text-on-surface-variant flex items-center gap-2">
+                <FileCheck2 className="w-4 h-4 text-accent-primary shrink-0" />
+                <span>Pernyataan ini tersimpan di sistem audit HRMS sebagai bukti kepatuhan regulasi ketenagakerjaan resmi.</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => setShowAttestationModal(false)}
+                className="flex-1 py-3 px-4 rounded-xl bg-surface-container-high hover:bg-surface-container border border-outline text-on-surface font-bold text-xs transition-colors cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAttestationClockOut}
+                className="flex-2 py-3 px-4 rounded-xl bg-gradient-to-r from-accent-primary to-primary text-white font-bold text-xs flex items-center justify-center gap-2 hover:shadow-lg transition-all cursor-pointer font-display"
+              >
+                <ShieldCheck className="w-4 h-4" /> Tanda Tangan & Selesaikan Shift
+              </button>
+            </div>
           </div>
         </div>
       )}

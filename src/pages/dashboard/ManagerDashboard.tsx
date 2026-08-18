@@ -1,5 +1,5 @@
 import { useHRStore } from '@/store/useHRStore'
-import { Users, BrainCircuit, AlertTriangle, Activity, Sparkles, Clock, DollarSign, Flame, UserCheck, TrendingUp, Shield, Info } from 'lucide-react'
+import { Users, BrainCircuit, AlertTriangle, Activity, Sparkles, Clock, DollarSign, Flame, UserCheck, TrendingUp, Shield, Info, ShieldCheck, Filter } from 'lucide-react'
 import { TiltCard } from '@/components/motion/TiltCard'
 import { toast } from 'sonner'
 import { useMemo, useState, useEffect } from 'react'
@@ -7,6 +7,7 @@ import { sound } from '@/lib/sound'
 import { useNavigate } from 'react-router-dom'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { BRANCH_PROFILES } from '@/lib/branches'
+import { cn } from '@/lib/utils'
 
 // Shift schedule config: [startHour, endHour]
 const SHIFT_SCHEDULE: Record<string, [number, number]> = {
@@ -82,7 +83,11 @@ export function ManagerDashboard() {
   const autoBalanceShifts = useHRStore(state => state.autoBalanceShifts)
   const addAuditLog = useHRStore(state => state.addAuditLog)
   const handoverNotes = useHRStore(state => state.handoverNotes)
+  const employeeMoods = useHRStore(state => state.employeeMoods)
+  const attestationRecords = useHRStore(state => state.attestationRecords || [])
   const navigate = useNavigate()
+
+  const [floorStatusFilter, setFloorStatusFilter] = useState<'ALL' | 'ON_DUTY' | 'LATE' | 'OFF'>('ALL')
 
   const { activeShiftName, remainingLabel, now } = useShiftCountdown()
 
@@ -95,6 +100,73 @@ export function ManagerDashboard() {
   const onDutyEmployees = useMemo(() => {
     return attendances.filter(a => a.timeIn !== '--:--' && a.timeOut === '--:--')
   }, [attendances])
+
+  const lateEmployees = useMemo(() => {
+    return attendances.filter(a => a.status === 'Terlambat')
+  }, [attendances])
+
+  const offDutyEmployees = useMemo(() => {
+    const activeIds = new Set(onDutyEmployees.map(a => a.employeeId))
+    return employees.filter(e => !activeIds.has(e.id))
+  }, [employees, onDutyEmployees])
+
+  const filteredFloorStaff = useMemo(() => {
+    if (floorStatusFilter === 'ON_DUTY') {
+      return onDutyEmployees.map(att => ({
+        ...att,
+        employee: employees.find(e => e.id === att.employeeId),
+        dutyStatus: 'On-Duty' as const
+      }))
+    }
+    if (floorStatusFilter === 'LATE') {
+      return lateEmployees.map(att => ({
+        ...att,
+        employee: employees.find(e => e.id === att.employeeId),
+        dutyStatus: 'Late' as const
+      }))
+    }
+    if (floorStatusFilter === 'OFF') {
+      return offDutyEmployees.map(emp => {
+        const att = attendances.find(a => a.employeeId === emp.id)
+        return {
+          id: emp.id,
+          employeeId: emp.id,
+          name: emp.name,
+          role: emp.role,
+          avatar: emp.avatar,
+          timeIn: att?.timeIn || '--:--',
+          timeOut: att?.timeOut || '--:--',
+          status: att?.status || 'Belum Hadir',
+          geofence: att?.geofence || 'Off Shift',
+          coordinates: att?.coordinates,
+          date: 'Hari Ini',
+          employee: emp,
+          dutyStatus: 'Off' as const
+        }
+      })
+    }
+    // ALL
+    return employees.map(emp => {
+      const att = attendances.find(a => a.employeeId === emp.id)
+      const isOnDuty = att && att.timeIn !== '--:--' && att.timeOut === '--:--'
+      const isLate = att && att.status === 'Terlambat'
+      return {
+        id: emp.id,
+        employeeId: emp.id,
+        name: emp.name,
+        role: emp.role,
+        avatar: emp.avatar,
+        timeIn: att?.timeIn || '--:--',
+        timeOut: att?.timeOut || '--:--',
+        status: att?.status || 'Belum Hadir',
+        geofence: att?.geofence || 'Belum Clock-In',
+        coordinates: att?.coordinates,
+        date: 'Hari Ini',
+        employee: emp,
+        dutyStatus: isOnDuty ? ('On-Duty' as const) : isLate ? ('Late' as const) : ('Off' as const)
+      }
+    })
+  }, [floorStatusFilter, onDutyEmployees, lateEmployees, offDutyEmployees, employees, attendances])
 
   // Total monthly estimated labor cost
   const monthlyLaborCost = useMemo(() => {
@@ -327,49 +399,127 @@ export function ManagerDashboard() {
         </TiltCard>
       </div>
 
-      {/* On-Duty Staff & Handover Notes Grid */}
+      {/* Live Who's On Floor Matrix (Deputy / 7shifts Standard) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* On-Duty Staff on Floor */}
-        <div className="glass-panel p-6 border border-outline rounded-3xl space-y-4">
-          <div className="flex items-center justify-between">
+        {/* On-Duty & Floor Staf Live Status */}
+        <div className="lg:col-span-2 glass-panel p-6 border border-outline rounded-3xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <UserCheck className="w-5 h-5 text-accent-primary" />
-              <h3 className="font-bold text-on-surface text-base font-display">Staf di Lantai (On-Duty)</h3>
+              <div>
+                <h3 className="font-bold text-on-surface text-base font-display">Who's On Floor — Live Status</h3>
+                <p className="text-[11px] text-on-surface-variant">Monitoring real-time staf di lantai operasional, presensi GPS, dan status kesiapan</p>
+              </div>
             </div>
-            <Tooltip content="Jumlah staf yang telah check-in presensi GPS dan sedang bertugas di kedai">
-              <span className="px-2.5 py-0.5 rounded-full bg-psy-safe-bg text-psy-safe-text text-xs font-bold font-mono cursor-help">
-                {onDutyEmployees.length} Hadir
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-1 rounded-full bg-psy-safe-bg text-psy-safe-text text-xs font-bold font-mono">
+                {onDutyEmployees.length} Bertugas
               </span>
-            </Tooltip>
+              {lateEmployees.length > 0 && (
+                <span className="px-2.5 py-1 rounded-full bg-error/10 text-error text-xs font-bold font-mono">
+                  {lateEmployees.length} Terlambat
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2.5">
-            {onDutyEmployees.map((record) => (
-              <Tooltip key={record.id} content={`Check-in: ${record.timeIn} WIB • Status: ${record.geofence} • Koordinat: ${record.coordinates || '-6.2289, 106.8021'}`}>
-                <div className="flex items-center justify-between p-3 rounded-2xl bg-surface-container-low border border-outline cursor-help w-full">
-                  <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <img src={record.avatar} alt={record.name} className="w-9 h-9 rounded-xl object-cover" />
-                      <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-psy-safe border-2 border-surface" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-xs text-on-surface">{record.name}</p>
-                      <p className="text-[10px] text-on-surface-variant">{record.role}</p>
-                    </div>
-                  </div>
-                  <div className="text-right font-mono text-[11px]">
-                    <p className="font-bold text-on-surface">In: {record.timeIn}</p>
-                    <p className={`text-[10px] font-sans ${record.geofence.startsWith('Inside') ? 'text-psy-safe-text' : 'text-error'}`}>
-                      {record.geofence.startsWith('Inside') ? 'HQ Valid' : 'Di Luar Area'}
-                    </p>
-                  </div>
-                </div>
-              </Tooltip>
+          {/* Filter Preset Chips */}
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-outline/50 text-xs">
+            <span className="text-on-surface-variant font-bold text-[11px] mr-1 flex items-center gap-1">
+              <Filter className="w-3 h-3 text-accent-primary" /> Filter:
+            </span>
+            {[
+              { id: 'ALL', label: 'Semua Staf', count: employees.length },
+              { id: 'ON_DUTY', label: 'On-Duty (Lantai)', count: onDutyEmployees.length },
+              { id: 'LATE', label: 'Terlambat', count: lateEmployees.length },
+              { id: 'OFF', label: 'Off / Belum Masuk', count: offDutyEmployees.length }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  sound.playClick()
+                  setFloorStatusFilter(tab.id as any)
+                }}
+                className={cn(
+                  "px-3 py-1 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                  floorStatusFilter === tab.id
+                    ? "bg-accent-primary text-white shadow-sm"
+                    : "bg-surface-container-high text-on-surface hover:text-accent-primary border border-outline"
+                )}
+              >
+                <span>{tab.label}</span>
+                <span className={cn(
+                  "px-1.5 py-0.2 rounded-md text-[10px] font-mono",
+                  floorStatusFilter === tab.id ? "bg-white/20 text-white" : "bg-surface-container text-on-surface-variant"
+                )}>
+                  {tab.count}
+                </span>
+              </button>
             ))}
-            {onDutyEmployees.length === 0 && (
-              <div className="text-center py-6 text-xs text-on-surface-variant font-semibold">
+          </div>
+
+          {/* Staff Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+            {filteredFloorStaff.map((record) => {
+              const mood = employeeMoods[record.employeeId]
+              const isOnDuty = record.dutyStatus === 'On-Duty'
+              const isLate = record.dutyStatus === 'Late'
+
+              return (
+                <Tooltip 
+                  key={record.id} 
+                  content={`Staf: ${record.name} • Departemen: ${record.employee?.dept} • Check-in: ${record.timeIn} WIB • Geofence: ${record.geofence} • Koordinat: ${record.coordinates || '-6.2289, 106.8021'}`}
+                >
+                  <div className={cn(
+                    "p-3.5 rounded-2xl border transition-all cursor-help flex items-start justify-between gap-3",
+                    isOnDuty ? "bg-surface-container-low border-psy-safe/30 hover:border-psy-safe/60" :
+                    isLate ? "bg-error/5 border-error/30 hover:border-error/50" :
+                    "bg-surface-container-lowest border-outline opacity-80"
+                  )}>
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="relative shrink-0">
+                        <img src={record.avatar} alt={record.name} className="w-10 h-10 rounded-2xl object-cover border border-outline" />
+                        <span className={cn(
+                          "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-surface",
+                          isOnDuty ? "bg-psy-safe" : isLate ? "bg-error" : "bg-on-surface-variant/40"
+                        )} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-bold text-xs text-on-surface truncate">{record.name}</p>
+                        <p className="text-[10px] text-on-surface-variant truncate">{record.role} • {record.employee?.dept}</p>
+                        
+                        {/* Readiness Mood Badge */}
+                        {mood && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className="px-1.5 py-0.5 rounded-md bg-accent-primary/10 text-accent-primary text-[9px] font-bold font-mono">
+                              {mood.mood === 'ready' ? '⚡ Siap Tempur' : mood.mood === 'good' ? '✓ Bugar' : '☕ Butuh Kopi'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="text-right font-mono text-[11px] shrink-0">
+                      <p className="font-bold text-on-surface">
+                        {isOnDuty ? `In: ${record.timeIn}` : isLate ? `Telat: ${record.timeIn}` : 'Off Shift'}
+                      </p>
+                      <p className={cn(
+                        "text-[9px] font-sans font-bold mt-0.5",
+                        isOnDuty ? (record.geofence.startsWith('Inside') ? 'text-psy-safe-text' : 'text-error') :
+                        isLate ? 'text-error' : 'text-on-surface-variant'
+                      )}>
+                        {isOnDuty ? (record.geofence.startsWith('Inside') ? '● Radius HQ' : '▲ Luar Area') :
+                         isLate ? '● Terlambat' : 'Rest Day'}
+                      </p>
+                    </div>
+                  </div>
+                </Tooltip>
+              )
+            })}
+            {filteredFloorStaff.length === 0 && (
+              <div className="col-span-2 text-center py-8 text-xs text-on-surface-variant font-semibold">
                 <Shield className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                Belum ada staf check-in hari ini
+                Tidak ada staf yang sesuai dengan filter
               </div>
             )}
           </div>
@@ -390,47 +540,84 @@ export function ManagerDashboard() {
           )}
         </div>
 
-        {/* Audit Log Activities */}
-        <div className="lg:col-span-2 glass-panel p-6 border border-outline rounded-3xl">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-on-surface text-base font-display">Log Aktivitas & Audit Trail</h3>
-            <div className="flex items-center gap-2">
-              <Tooltip content="Jumlah aktivitas perubahan jadwal & tindakan operasional yang tersimpan di log audit">
-                <span className="text-[10px] font-mono text-on-surface-variant bg-surface-container px-2 py-1 rounded-lg border border-outline cursor-help">
-                  <TrendingUp className="w-3 h-3 inline mr-1" />{auditLogs.length} Entri
-                </span>
-              </Tooltip>
-              <button onClick={() => navigate('/calendar')} className="text-xs text-accent-primary font-bold hover:underline cursor-pointer">
-                Lihat Kalender
-              </button>
+        {/* Audit Log & Digital Attestation Trail */}
+        <div className="space-y-6">
+          {/* Digital Attestations Signed */}
+          <div className="glass-panel p-6 border border-outline rounded-3xl">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-psy-safe" />
+                <h3 className="font-bold text-on-surface text-sm font-display">Attestation Compliance</h3>
+              </div>
+              <span className="text-[10px] font-mono text-psy-safe-text bg-psy-safe-bg px-2 py-0.5 rounded-md font-bold">
+                {attestationRecords.length} Tervalidasi
+              </span>
+            </div>
+            <p className="text-[10px] text-on-surface-variant mb-3">Audit trail konfirmasi istirahat & K3 saat karyawan clock-out</p>
+            
+            <div className="space-y-2">
+              {attestationRecords.slice(0, 2).map((rec) => (
+                <div key={rec.id} className="p-2.5 rounded-xl bg-surface-container-lowest border border-outline text-[10px]">
+                  <div className="flex justify-between items-center font-bold text-on-surface">
+                    <span>{rec.employeeName}</span>
+                    <span className="font-mono text-on-surface-variant">{rec.timestamp}</span>
+                  </div>
+                  <p className="text-on-surface-variant text-[9px] mt-0.5 line-clamp-1">{rec.notes || 'Istirahat & K3 terkonfirmasi aman.'}</p>
+                  <div className="flex items-center gap-1.5 mt-1.5 text-[8px] font-mono text-psy-safe-text">
+                    <span>✓ Break 1 Jam</span>
+                    <span>•</span>
+                    <span>✓ K3 Fit</span>
+                  </div>
+                </div>
+              ))}
+              {attestationRecords.length === 0 && (
+                <div className="text-center py-4 text-[10px] text-on-surface-variant">Belum ada attestation hari ini</div>
+              )}
             </div>
           </div>
-          <div className="space-y-2.5">
-            {auditLogs.slice(0, 5).map((log, idx) => (
-              <Tooltip key={idx} content={`Eksekutor: ${log.user} • Waktu: ${log.timestamp} • Aksi: ${log.action}`}>
-                <div className="flex items-center justify-between p-3.5 rounded-2xl bg-surface-container-low hover:bg-surface-container transition-colors border border-outline cursor-help w-full">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-accent-primary/10 flex items-center justify-center text-accent-primary shrink-0">
-                      <BrainCircuit className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-on-surface">{log.action}</p>
-                      <p className="text-[11px] text-on-surface-variant font-medium">
-                        {log.detail} • <span className="font-semibold text-accent-primary">{log.user}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-mono text-on-surface-variant font-semibold shrink-0">
-                    {log.timestamp}
+
+          {/* Audit Log Activities */}
+          <div className="glass-panel p-6 border border-outline rounded-3xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-on-surface text-sm font-display">Log Audit Sistem</h3>
+              <div className="flex items-center gap-2">
+                <Tooltip content="Jumlah aktivitas perubahan jadwal & tindakan operasional yang tersimpan di log audit">
+                  <span className="text-[10px] font-mono text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-lg border border-outline cursor-help">
+                    <TrendingUp className="w-3 h-3 inline mr-1" />{auditLogs.length}
                   </span>
-                </div>
-              </Tooltip>
-            ))}
-            {auditLogs.length === 0 && (
-              <div className="text-center py-8 text-xs text-on-surface-variant font-semibold">
-                Belum ada aktivitas tercatat
+                </Tooltip>
+                <button onClick={() => navigate('/calendar')} className="text-[11px] text-accent-primary font-bold hover:underline cursor-pointer">
+                  Kalender
+                </button>
               </div>
-            )}
+            </div>
+            <div className="space-y-2">
+              {auditLogs.slice(0, 3).map((log, idx) => (
+                <Tooltip key={idx} content={`Eksekutor: ${log.user} • Waktu: ${log.timestamp} • Aksi: ${log.action}`}>
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors border border-outline cursor-help w-full text-xs">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-7 h-7 rounded-lg bg-accent-primary/10 flex items-center justify-center text-accent-primary shrink-0">
+                        <BrainCircuit className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold text-on-surface truncate">{log.action}</p>
+                        <p className="text-[10px] text-on-surface-variant truncate font-medium">
+                          {log.detail}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-mono text-on-surface-variant font-semibold shrink-0 ml-2">
+                      {log.timestamp}
+                    </span>
+                  </div>
+                </Tooltip>
+              ))}
+              {auditLogs.length === 0 && (
+                <div className="text-center py-4 text-xs text-on-surface-variant font-semibold">
+                  Belum ada aktivitas tercatat
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

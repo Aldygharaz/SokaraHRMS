@@ -116,6 +116,18 @@ export interface SopTask {
   completedAt?: string
 }
 
+export interface AttestationRecord {
+  id: number
+  employeeId: number
+  employeeName: string
+  date: string
+  hadBreak: boolean
+  isFit: boolean
+  shiftConfirmed: boolean
+  notes: string
+  timestamp: string
+}
+
 interface HRState {
   activeTab: string
   activeRole: Role
@@ -130,6 +142,8 @@ interface HRState {
   terRates: Record<string, number>
   employees: Employee[]
   shifts: Record<number, string[]>
+  shiftTemplates: Record<string, Record<number, string[]>>
+  attestationRecords: AttestationRecord[]
   swapRequests: SwapRequest[]
   auditLogs: AuditLog[]
   okrGoals: OkrGoal[]
@@ -167,6 +181,10 @@ interface HRState {
   updateTerRates: (rates: Record<string, number>) => void
   updateEmployeePayroll: (id: number, data: Partial<Employee>) => void
   updateShift: (employeeId: number, dayIdx: number, shift: string) => void
+  saveShiftTemplate: (name: string) => void
+  applyShiftTemplate: (name: string) => void
+  deleteShiftTemplate: (name: string) => void
+  addAttestationRecord: (record: Omit<AttestationRecord, 'id' | 'timestamp'>) => void
   toggleSopTask: (id: string, staffName: string) => void
   restoreSnapshot: (snapshotState: Partial<HRState>) => void
   updateUnavailability: (employeeId: number, unavail: Unavailability[]) => void
@@ -209,6 +227,44 @@ const defaultSopTasks: SopTask[] = [
   { id: 'cl-4', shiftType: 'Closing', title: 'Kunci Pintu Kedai & Matikan AC / Audio Bar System', completed: false }
 ]
 
+const defaultShiftTemplates: Record<string, Record<number, string[]>> = {
+  'Standar Operasional Regular': {
+    1: ['Pagi', 'Pagi', 'Pagi', 'Pagi', 'Sore', 'Sore', 'OFF'],
+    2: ['Pagi', 'Pagi', 'OFF', 'Pagi', 'Pagi', 'Sore', 'Sore'],
+    3: ['Sore', 'Sore', 'Sore', 'Sore', 'OFF', 'Pagi', 'Pagi'],
+    4: ['Pagi', 'OFF', 'Closing', 'Sore', 'Pagi', 'Pagi', 'Sore'],
+    5: ['Sore', 'Pagi', 'Pagi', 'OFF', 'Sore', 'Sore', 'Pagi']
+  },
+  'Weekend Rush (Heavy Evening & Closing)': {
+    1: ['Pagi', 'Pagi', 'Pagi', 'OFF', 'Sore', 'Closing', 'Closing'],
+    2: ['Pagi', 'OFF', 'Pagi', 'Pagi', 'Sore', 'Sore', 'Closing'],
+    3: ['OFF', 'Sore', 'Sore', 'Sore', 'Closing', 'Closing', 'Sore'],
+    4: ['Pagi', 'Pagi', 'OFF', 'Sore', 'Closing', 'Closing', 'OFF'],
+    5: ['Sore', 'Sore', 'Pagi', 'Pagi', 'OFF', 'Sore', 'Pagi']
+  },
+  'Event & Festival Support (Max Frontline)': {
+    1: ['Pagi', 'Pagi', 'Pagi', 'Pagi', 'Closing', 'Closing', 'Sore'],
+    2: ['Pagi', 'Pagi', 'Pagi', 'Pagi', 'Sore', 'Closing', 'Closing'],
+    3: ['Sore', 'Sore', 'Sore', 'OFF', 'Closing', 'Closing', 'Closing'],
+    4: ['Pagi', 'Pagi', 'Pagi', 'Sore', 'Sore', 'Closing', 'OFF'],
+    5: ['Sore', 'Sore', 'Sore', 'Pagi', 'OFF', 'Sore', 'Closing']
+  }
+}
+
+const defaultAttestationRecords: AttestationRecord[] = [
+  {
+    id: 1,
+    employeeId: 1,
+    employeeName: 'Dimas Prasetyo',
+    date: 'Kemarin',
+    hadBreak: true,
+    isFit: true,
+    shiftConfirmed: true,
+    notes: 'Shift berjalan lancar, kalibrasi grinder stabil seharian.',
+    timestamp: '17:05 WIB'
+  }
+]
+
 export const useHRStore = create<HRState>()(
   persist(
     (set) => ({
@@ -228,6 +284,8 @@ export const useHRStore = create<HRState>()(
       handoverNotes: defaultHandoverNotes,
       openShifts: defaultOpenShifts,
       sopTasks: defaultSopTasks,
+      shiftTemplates: defaultShiftTemplates,
+      attestationRecords: defaultAttestationRecords,
       employeeMoods: {
         1: { mood: 'ready', label: 'Siap Tempur', timestamp: '07:42 WIB' },
         2: { mood: 'good', label: 'Bugar & Fokus', timestamp: '07:55 WIB' },
@@ -533,6 +591,47 @@ export const useHRStore = create<HRState>()(
           rosterStatus: 'draft'
         }
       }),
+      saveShiftTemplate: (name) => set((state) => {
+        const cloned: Record<number, string[]> = {}
+        Object.entries(state.shifts).forEach(([k, v]) => {
+          cloned[Number(k)] = [...v]
+        })
+        return {
+          shiftTemplates: {
+            ...state.shiftTemplates,
+            [name]: cloned
+          }
+        }
+      }),
+      applyShiftTemplate: (name) => set((state) => {
+        const target = state.shiftTemplates[name]
+        if (!target) return {}
+        const cloned: Record<number, string[]> = {}
+        Object.entries(target).forEach(([k, v]) => {
+          cloned[Number(k)] = [...v]
+        })
+        return {
+          shifts: cloned,
+          rosterStatus: 'draft'
+        }
+      }),
+      deleteShiftTemplate: (name) => set((state) => {
+        const next = { ...state.shiftTemplates }
+        delete next[name]
+        return { shiftTemplates: next }
+      }),
+      addAttestationRecord: (record) => set((state) => {
+        const now = new Date()
+        const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`
+        const newRecord: AttestationRecord = {
+          ...record,
+          id: Date.now(),
+          timestamp
+        }
+        return {
+          attestationRecords: [newRecord, ...state.attestationRecords]
+        }
+      }),
       toggleSopTask: (id, staffName) => set((state) => {
         const now = new Date()
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`
@@ -571,6 +670,8 @@ export const useHRStore = create<HRState>()(
         handoverNotes: defaultHandoverNotes,
         openShifts: defaultOpenShifts,
         sopTasks: defaultSopTasks,
+        shiftTemplates: defaultShiftTemplates,
+        attestationRecords: defaultAttestationRecords,
         employeeMoods: {
           1: { mood: 'ready', label: 'Siap Tempur', timestamp: '07:42 WIB' },
           2: { mood: 'good', label: 'Bugar & Fokus', timestamp: '07:55 WIB' },
@@ -611,7 +712,7 @@ export const useHRStore = create<HRState>()(
     }),
     {
       name: 'sokara_hr_store',
-      version: 9,
+      version: 10,
     }
   )
 )
