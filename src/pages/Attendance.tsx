@@ -1,9 +1,18 @@
 import { useHRStore } from '@/store/useHRStore'
 import { TiltCard } from '@/components/motion/TiltCard'
-import { MapPin, Clock, Download, CheckCircle2, AlertCircle, Camera, Navigation, Radio, Check, X, Compass, Coffee, Zap, BatteryLow, MessageSquarePlus, Send, AlertTriangle, Play, Pause, Activity, Copy, ClipboardCheck, CheckSquare, Square, ShieldCheck, FileCheck2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Clock, Download, CheckCircle2, Camera, Navigation, Check, X, Compass, Coffee, Zap, BatteryLow, MessageSquarePlus, Send, AlertTriangle, Play, Pause, Activity, Copy, ClipboardCheck, CheckSquare, Square, ShieldCheck, FileCheck2, MapPin, BarChart3, FileSpreadsheet } from 'lucide-react'
+import { cn, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useState, useEffect, useMemo } from 'react'
+
+// Helper to parse '09:45 WIB' from mock data back to Date object for timeAgo
+function parseWibToDate(timeStr: string) {
+  if (!timeStr.includes(':')) return new Date()
+  const [hh, mm] = timeStr.replace(/[^0-9:]/g, '').split(':').map(Number)
+  const d = new Date()
+  d.setHours(hh || 0, mm || 0, 0, 0)
+  return d
+}
 import { sound } from '@/lib/sound'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Tooltip } from '@/components/ui/Tooltip'
@@ -31,12 +40,50 @@ export function Attendance() {
   const toggleSopTask = useHRStore(state => state.toggleSopTask)
   const addAttestationRecord = useHRStore(state => state.addAttestationRecord)
   const addAuditLog = useHRStore(state => state.addAuditLog)
+  const timesheetApprovals = useHRStore(state => state.timesheetApprovals || [])
+  const approveTimesheet = useHRStore(state => state.approveTimesheet)
+  const approveAllTimesheets = useHRStore(state => state.approveAllTimesheets)
 
   const currentBranch = BRANCH_PROFILES[activeBranch] || BRANCH_PROFILES['Senopati (HQ)']
 
   const [currentTime, setCurrentTime] = useState(new Date())
   const [gpsModal, setGpsModal] = useState<{ name: string, coords: string, geofence: string } | null>(null)
   const [mockDistance, setMockDistance] = useState(25) // meters from HQ
+  const [attendanceViewTab, setAttendanceViewTab] = useState<'live' | 'timesheet' | 'rekap'>('live')
+
+  const handleExportRekapCSV = () => {
+    sound.playSuccess()
+    const rows = [
+      ['ID', 'Nama Karyawan', 'Role', 'Departemen', 'Hari Hadir', 'Tepat Waktu', 'Terlambat', 'Total Lembur (Jam)', 'Skor Disiplin (%)', 'Status Evaluasi'],
+      ...employees.map(emp => {
+        const att = attendances.find(a => a.employeeId === emp.id)
+        const punctuality = emp.punctuality || 95
+        const status = punctuality >= 95 ? 'Prima / Teladan' : punctuality >= 85 ? 'Standar' : 'Perlu Evaluasi'
+        return [
+          emp.id,
+          emp.name,
+          emp.role,
+          emp.dept,
+          '22 Hari',
+          '21 Hari',
+          att?.status === 'Terlambat' ? '1 Hari' : '0 Hari',
+          `${emp.overtimeHours || 0} Jam`,
+          `${punctuality}%`,
+          status
+        ]
+      })
+    ]
+
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n")
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement("a")
+    link.setAttribute("href", encodedUri)
+    link.setAttribute("download", `Rekap_Presensi_${currentBranch.name.replace(/\s+/g, '_')}_Agustus_2026.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast.success("File CSV Rekap Presensi berhasil diunduh!")
+  }
 
   // Active Attestation Clock-Out State
   const [showAttestationModal, setShowAttestationModal] = useState(false)
@@ -655,7 +702,7 @@ export function Attendance() {
                 <span className="font-bold text-on-surface flex items-center gap-1.5">
                   {note.author} <span className="text-[10px] text-on-surface-variant font-normal">({note.shift})</span>
                 </span>
-                <span className="font-mono text-[10px] text-on-surface-variant">{note.time}</span>
+                <span className="font-mono text-[10px] text-on-surface-variant">{timeAgo(parseWibToDate(note.time))}</span>
               </div>
               <p className="text-on-surface-variant leading-relaxed">{note.note}</p>
               {note.priority === 'urgent' && (
@@ -693,118 +740,320 @@ export function Attendance() {
             </button>
           </div>
         </form>
-      </div>
 
-      {/* Table Section */}
-      <div className="glass-panel spotlight-card rounded-3xl overflow-hidden overflow-x-auto border border-outline p-0">
-        <div className="p-4 border-b border-outline flex items-center justify-between bg-surface-container-lowest">
-          <h3 className="font-bold text-sm text-on-surface font-display uppercase tracking-wider">
-            {activeRole === 'manager' ? 'Log Presensi Tim (Real-Time)' : 'Riwayat Presensi Saya'}
-          </h3>
-          <span className="text-xs text-on-surface-variant font-mono">{displayAttendances.length} Catatan</span>
-        </div>
+        {/* Table Section */}
+        <div className="glass-panel spotlight-card rounded-3xl overflow-hidden overflow-x-auto border border-outline p-0 mt-6">
+          <div className="p-4 border-b border-outline flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-lowest">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => { sound.playClick(); setAttendanceViewTab('live') }}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer",
+                  attendanceViewTab === 'live' ? "bg-accent-primary text-white shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+                )}
+              >
+                Log Presensi Live ({displayAttendances.length})
+              </button>
+              <button
+                onClick={() => { sound.playClick(); setAttendanceViewTab('timesheet') }}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                  attendanceViewTab === 'timesheet' ? "bg-accent-primary text-white shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+                )}
+              >
+                <FileCheck2 className="w-3.5 h-3.5" />
+                Timesheet Audit & Discrepancy ({timesheetApprovals.length})
+              </button>
+              <button
+                onClick={() => { sound.playClick(); setAttendanceViewTab('rekap') }}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+                  attendanceViewTab === 'rekap' ? "bg-accent-primary text-white shadow-sm" : "text-on-surface-variant hover:text-on-surface"
+                )}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                Rekap Bulanan & Disiplin ({employees.length})
+              </button>
+            </div>
 
-        {displayAttendances.length === 0 ? (
-          <div className="p-8">
-            <EmptyState
-              icon={Clock}
-              title="Belum Ada Catatan Presensi"
-              description="Belum ada riwayat check-in yang tercatat untuk periode ini."
-            />
+            {attendanceViewTab === 'timesheet' && activeRole === 'manager' && (
+              <button
+                onClick={() => {
+                  sound.playSuccess()
+                  approveAllTimesheets('Aldy (Manager)')
+                  toast.success("Seluruh timesheet presensi berhasil disetujui massal!")
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-accent-primary to-primary text-white font-bold text-xs hover:shadow-md transition-all cursor-pointer flex items-center gap-1.5 font-display"
+              >
+                <Check className="w-3.5 h-3.5" /> Setujui Semua Timesheet
+              </button>
+            )}
+
+            {attendanceViewTab === 'rekap' && (
+              <button
+                onClick={handleExportRekapCSV}
+                className="px-3.5 py-1.5 rounded-xl bg-accent-primary text-white font-bold text-xs hover:bg-accent-primary/90 transition-all cursor-pointer flex items-center gap-1.5 font-display shadow-sm"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" /> Unduh CSV Rekap
+              </button>
+            )}
           </div>
-        ) : (
-          <table className="w-full text-left border-collapse min-w-[850px]">
-            <thead>
-              <tr className="bg-surface-container-low border-b border-surface-container-high text-xs text-on-surface-variant uppercase tracking-wider font-bold">
-                <th className="p-4">Karyawan</th>
-                <th className="p-4">Jam Masuk</th>
-                <th className="p-4">Jam Keluar</th>
-                <th className="p-4">Status Geofence</th>
-                <th className="p-4">Status Kehadiran</th>
-                <th className="p-4">Kesiapan / Mood</th>
-                <th className="p-4">Verifikasi GPS</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-container-high text-xs">
-              {displayAttendances.map(record => (
-                <tr key={record.id} className="hover:bg-surface-container/60 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <img src={record.avatar} alt={record.name} className="w-8 h-8 rounded-full object-cover border border-outline" />
-                      <div>
-                        <p className="font-bold text-on-surface">{record.name}</p>
-                        <p className="text-[10px] text-on-surface-variant">{record.role}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-1.5 font-mono font-medium text-on-surface">
-                      <Clock className="w-3.5 h-3.5 text-accent-primary" /> {record.timeIn}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-1.5 font-mono font-medium text-on-surface-variant">
-                      <Clock className="w-3.5 h-3.5" /> {record.timeOut}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <Tooltip content={`Status verifikasi lokasi GPS saat check-in: ${record.geofence}`}>
-                      <span className={cn(
-                        "px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 w-max cursor-help",
-                        record.geofence.includes('Outside') 
-                          ? "bg-psy-danger-bg text-psy-danger-text border border-psy-danger/20" 
-                          : "bg-psy-safe-bg text-psy-safe-text border border-psy-safe/20"
-                      )}>
-                        <MapPin className="w-3 h-3" /> {record.geofence}
-                      </span>
-                    </Tooltip>
-                  </td>
-                  <td className="p-4">
-                    <Tooltip content={record.status === 'Tepat Waktu' ? 'Staf hadir sebelum shift operasional dimulai.' : 'Staf tiba melewati jadwal pembukaan shift.'}>
-                      <span className={cn(
-                        "px-2.5 py-1 rounded-lg font-bold text-[10px] uppercase tracking-wider flex items-center gap-1 w-max cursor-help",
-                        record.status === 'Tepat Waktu' 
-                          ? "bg-psy-safe-bg text-psy-safe-text border border-psy-safe/20" 
-                          : "bg-psy-warning-bg text-psy-warning-text border border-psy-warning/20"
-                      )}>
-                        {record.status === 'Tepat Waktu' ? <CheckCircle2 className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                        {record.status}
-                      </span>
-                    </Tooltip>
-                  </td>
-                  <td className="p-4">
-                    {employeeMoods[record.employeeId] ? (
-                      <Tooltip content={`Kondisi kesiapan kerja sebelum shift: ${employeeMoods[record.employeeId].label}`}>
-                        <span className="px-2.5 py-1 rounded-lg bg-surface-container-high border border-outline text-[10px] font-bold text-on-surface font-mono cursor-help">
-                          {employeeMoods[record.employeeId].label}
-                        </span>
-                      </Tooltip>
-                    ) : (
-                      <span className="text-[10px] text-on-surface-variant font-mono">Normal</span>
-                    )}
-                  </td>
-                  <td className="p-4">
-                    <Tooltip content="Lihat koordinat presensi pada radar simulator radius GPS Kedai Senopati">
-                      <button 
-                        onClick={() => {
-                          sound.playClick()
-                          setGpsModal({
-                            name: record.name,
-                            coords: record.coordinates || '-6.2289, 106.8021',
-                            geofence: record.geofence
-                          })
-                        }}
-                        className="text-accent-primary font-bold hover:underline text-xs flex items-center gap-1 cursor-pointer"
-                      >
-                        <Radio className="w-3.5 h-3.5" /> Radar GPS
-                      </button>
-                    </Tooltip>
-                  </td>
+
+          {attendanceViewTab === 'live' ? (
+            displayAttendances.length === 0 ? (
+              <div className="p-8">
+                <EmptyState
+                  icon={Clock}
+                  title="Belum Ada Catatan Presensi"
+                  description="Belum ada riwayat check-in yang tercatat untuk periode ini."
+                  actionLabel="Muat Ulang Log Live"
+                  onAction={() => { sound.playClick(); toast.info('Memuat sinkronisasi terbaru dari sistem absensi...'); }}
+                />
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse min-w-[850px]">
+                <thead>
+                  <tr className="bg-surface-container-low border-b border-surface-container-high text-xs text-on-surface-variant uppercase tracking-wider font-bold">
+                    <th className="p-4">Karyawan</th>
+                    <th className="p-4">Jam Masuk</th>
+                    <th className="p-4">Jam Keluar</th>
+                    <th className="p-4">Status Geofence</th>
+                    <th className="p-4">Status Kehadiran</th>
+                    <th className="p-4">Kesiapan / Mood</th>
+                    <th className="p-4">Verifikasi GPS</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline text-xs">
+                  {displayAttendances.map((att) => {
+                    const mood = employeeMoods[att.employeeId]
+
+                    return (
+                      <tr key={att.id} className="hover:bg-surface-container-low/50 transition-colors">
+                        <td className="p-4 flex items-center gap-3">
+                          <img src={att.avatar} alt={att.name} className="w-9 h-9 rounded-xl object-cover border border-outline" />
+                          <div>
+                            <p className="font-bold text-on-surface">{att.name}</p>
+                            <p className="text-[10px] text-on-surface-variant">{att.role}</p>
+                          </div>
+                        </td>
+                        <td className="p-4 font-mono font-bold text-on-surface">{att.timeIn} WIB</td>
+                        <td className="p-4 font-mono text-on-surface-variant">
+                          {att.timeOut === '--:--' ? <span className="text-accent-primary animate-pulse font-bold">Sedang Bertugas</span> : `${att.timeOut} WIB`}
+                        </td>
+                        <td className="p-4">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-full text-[10px] font-bold border",
+                            att.geofence.startsWith('Inside') 
+                              ? "bg-psy-safe-bg text-psy-safe-text border-psy-safe/30" 
+                              : "bg-psy-danger-bg text-psy-danger-text border-psy-danger/30"
+                          )}>
+                            {att.geofence}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-full text-[10px] font-bold border",
+                            att.status === 'Tepat Waktu' ? "bg-psy-safe-bg text-psy-safe-text border-psy-safe/30" :
+                            att.status === 'Terlambat' ? "bg-psy-warning-bg text-psy-warning-text border-psy-warning/30" :
+                            "bg-surface-container text-on-surface-variant border-outline"
+                          )}>
+                            {att.status}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          {mood ? (
+                            <div className="flex items-center gap-1.5">
+                              <span className={cn(
+                                "w-2 h-2 rounded-full",
+                                mood.mood === 'ready' ? "bg-psy-safe" :
+                                mood.mood === 'good' ? "bg-accent-primary" :
+                                mood.mood === 'tired' ? "bg-psy-warning" : "bg-psy-danger"
+                              )} />
+                              <span className="font-medium text-[11px] text-on-surface">{mood.label}</span>
+                            </div>
+                          ) : (
+                            <span className="text-on-surface-variant text-[11px]">—</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <button
+                            onClick={() => {
+                              sound.playClick()
+                              setGpsModal({
+                                name: att.name,
+                                coords: att.coordinates || '-6.2289, 106.8021',
+                                geofence: att.geofence
+                              })
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-surface-container-high hover:bg-surface-container text-[11px] font-bold text-accent-primary flex items-center gap-1 cursor-pointer transition-colors border border-outline"
+                          >
+                            <Navigation className="w-3 h-3" /> Radar GPS
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )
+          ) : attendanceViewTab === 'timesheet' ? (
+            <table className="w-full text-left border-collapse min-w-[850px]">
+              <thead>
+                <tr className="bg-surface-container-low border-b border-surface-container-high text-xs text-on-surface-variant uppercase tracking-wider font-bold">
+                  <th className="p-4">Karyawan</th>
+                  <th className="p-4">Jadwal Shift</th>
+                  <th className="p-4">Check-In Aktual</th>
+                  <th className="p-4">Check-Out Aktual</th>
+                  <th className="p-4">Variansi & Selisih</th>
+                  <th className="p-4">Status Approval</th>
+                  <th className="p-4">Aksi Manager</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody className="divide-y divide-outline text-xs">
+                {timesheetApprovals.map((t) => {
+                  const isDiscrepant = Math.abs(t.varianceMinutes) > 10
+
+                  return (
+                    <tr key={t.id} className="hover:bg-surface-container-low/50 transition-colors">
+                      <td className="p-4 font-bold text-on-surface">{t.employeeName}</td>
+                      <td className="p-4 font-mono text-on-surface-variant">{t.scheduledShift}</td>
+                      <td className="p-4 font-mono text-on-surface">{t.actualClockIn} WIB</td>
+                      <td className="p-4 font-mono text-on-surface">{t.actualClockOut} WIB</td>
+                      <td className="p-4 font-mono">
+                        <span className={cn(
+                          "px-2 py-0.5 rounded text-[11px] font-bold",
+                          isDiscrepant ? "bg-psy-danger-bg text-psy-danger" : "bg-psy-safe-bg text-psy-safe"
+                        )}>
+                          {t.varianceMinutes > 0 ? `+${t.varianceMinutes} mnt` : `${t.varianceMinutes} mnt`}
+                        </span>
+                      </td>
+                      <td className="p-4">
+                        {t.approved ? (
+                          <div className="space-y-0.5">
+                            <span className="px-2.5 py-0.5 rounded-full bg-psy-safe-bg text-psy-safe font-bold text-[10px] inline-flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Approved
+                            </span>
+                            {t.approvedBy && (
+                              <p className="text-[9px] text-on-surface-variant font-mono">
+                                Oleh {t.approvedBy} ({t.approvedAt})
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full bg-psy-warning-bg text-psy-warning font-bold text-[10px] inline-flex items-center gap-1">
+                            Menunggu Approval
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        {!t.approved && activeRole === 'manager' && (
+                          <button
+                            onClick={() => {
+                              sound.playSuccess()
+                              approveTimesheet(t.id, 'Aldy (Manager)')
+                              toast.success(`Timesheet ${t.employeeName} disetujui!`)
+                            }}
+                            className="px-3 py-1 rounded-xl bg-accent-primary text-white font-bold text-xs hover:bg-accent-primary/90 transition-all cursor-pointer flex items-center gap-1"
+                          >
+                            <Check className="w-3.5 h-3.5" /> Setujui
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          ) : (
+            /* Rekap Bulanan View Table */
+            <table className="w-full text-left border-collapse min-w-[850px]">
+              <thead>
+                <tr className="bg-surface-container-low border-b border-surface-container-high text-xs text-on-surface-variant uppercase tracking-wider font-bold">
+                  <th className="p-4">Staf & Posisi</th>
+                  <th className="p-4">Kehadiran (Bulan Ini)</th>
+                  <th className="p-4">Tepat Waktu %</th>
+                  <th className="p-4">Akumulasi Lembur</th>
+                  <th className="p-4">Kepatuhan Geofence</th>
+                  <th className="p-4">Status Disiplin</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-outline text-xs">
+                {employees.map((emp) => {
+                  const att = attendances.find(a => a.employeeId === emp.id)
+                  const punctuality = emp.punctuality || 95
+                  const isTopPerformer = punctuality >= 97
+
+                  return (
+                    <tr key={emp.id} className="hover:bg-surface-container-low/50 transition-colors">
+                      <td className="p-4 flex items-center gap-3">
+                        <img src={emp.avatar} alt={emp.name} className="w-9 h-9 rounded-xl object-cover border border-outline" />
+                        <div>
+                          <p className="font-bold text-on-surface flex items-center gap-1.5">
+                            {emp.name}
+                            {isTopPerformer && (
+                              <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-500 text-[9px] font-bold">Teladan</span>
+                            )}
+                          </p>
+                          <p className="text-[10px] text-on-surface-variant">{emp.role} • {emp.dept}</p>
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[11px] font-mono">
+                            <span className="font-bold text-on-surface">22 / 24 Hari</span>
+                            <span className="text-on-surface-variant">91.6%</span>
+                          </div>
+                          <div className="w-32 h-1.5 rounded-full bg-surface-container overflow-hidden">
+                            <div className="h-full bg-accent-primary rounded-full" style={{ width: '91.6%' }} />
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          <span className={cn(
+                            "px-2.5 py-0.5 rounded-md font-mono text-[11px] font-bold inline-block",
+                            punctuality >= 95 ? "bg-psy-safe-bg text-psy-safe" :
+                            punctuality >= 85 ? "bg-psy-warning-bg text-psy-warning" : "bg-psy-danger-bg text-psy-danger"
+                          )}>
+                            {punctuality}%
+                          </span>
+                          <p className="text-[10px] text-on-surface-variant">
+                            {att?.status === 'Terlambat' ? '1x Terlambat' : '0x Terlambat'}
+                          </p>
+                        </div>
+                      </td>
+
+                      <td className="p-4 font-mono font-bold text-on-surface">
+                        <span className="px-2.5 py-1 rounded-xl bg-surface-container border border-outline text-[11px]">
+                          {emp.overtimeHours || 0} Jam
+                        </span>
+                      </td>
+
+                      <td className="p-4">
+                        <span className="px-2.5 py-1 rounded-full bg-psy-safe-bg text-psy-safe border border-psy-safe/30 text-[10px] font-bold inline-flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3" /> 100% Sesuai Radius
+                        </span>
+                      </td>
+
+                      <td className="p-4">
+                        <span className={cn(
+                          "px-3 py-1 rounded-full text-xs font-bold border inline-block",
+                          punctuality >= 95 ? "bg-psy-safe-bg text-psy-safe border-psy-safe/30" :
+                          punctuality >= 85 ? "bg-psy-warning-bg text-psy-warning border-psy-warning/30" :
+                          "bg-psy-danger-bg text-psy-danger border-psy-danger/30"
+                        )}>
+                          {punctuality >= 95 ? 'Prima / Aman' : punctuality >= 85 ? 'Standar' : 'Perlu Evaluasi'}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {/* GPS Radar Modal */}

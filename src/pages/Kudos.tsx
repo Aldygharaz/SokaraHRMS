@@ -1,8 +1,6 @@
 import { useHRStore } from '@/store/useHRStore'
 import { Heart, MessageSquare, Award, ThumbsUp, Send } from 'lucide-react'
-import { TiltCard } from '@/components/motion/TiltCard'
 import { toast } from 'sonner'
-import { useState } from 'react'
 import { sound } from '@/lib/sound'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -10,30 +8,7 @@ export function Kudos() {
   const employees = useHRStore(state => state.employees)
   const activeEmployeeId = useHRStore(state => state.activeEmployeeId)
   const kudosList = useHRStore(state => state.kudosList)
-  const addKudos = useHRStore(state => state.addKudos)
-  const [recipient, setRecipient] = useState('')
-  const [message, setMessage] = useState('')
   
-  const handleSendKudos = () => {
-    if (!recipient || !message) {
-      sound.playWarning()
-      toast.error('Pilih rekan dan isi pesan terlebih dahulu!')
-      return
-    }
-    
-    sound.playSuccess()
-    addKudos({
-      from: activeEmployeeId,
-      to: Number(recipient),
-      text: message,
-      type: 'teamwork'
-    })
-    
-    toast.success("Apresiasi berhasil dikirim!")
-    setRecipient('')
-    setMessage('')
-  }
-
   return (
     <div className="space-y-6">
       <div className="glass-panel spotlight-card p-6 md:p-8 rounded-3xl border border-outline bg-gradient-to-r from-surface to-surface-container">
@@ -66,7 +41,7 @@ export function Kudos() {
             if (!sender || !receiver) return null
 
             return (
-              <TiltCard key={kudo.id} className="glass-panel p-5 rounded-3xl border border-outline hover:border-accent-primary/50 transition-colors">
+              <div key={kudo.id} className="glass-panel p-5 rounded-3xl border border-outline hover:border-accent-primary/50 transition-all hover:shadow-md hover:-translate-y-0.5 duration-200">
                 <div className="flex gap-4">
                   <div className="shrink-0 relative">
                     <img src={sender.avatar} alt={sender.name} className="w-10 h-10 rounded-2xl object-cover border-2 border-surface shadow-sm" />
@@ -106,7 +81,7 @@ export function Kudos() {
                     </div>
                   </div>
                 </div>
-              </TiltCard>
+              </div>
             )
           })}
         </div>
@@ -116,41 +91,16 @@ export function Kudos() {
             <h3 className="font-bold text-on-surface font-display mb-4 flex items-center gap-2">
               <Award className="w-5 h-5 text-tertiary" /> Kirim Apresiasi Baru
             </h3>
-            <div className="space-y-4 text-xs">
-              <div>
-                <label className="font-bold text-on-surface-variant block mb-1">Kepada Rekan:</label>
-                <select 
-                  value={recipient}
-                  onChange={(e) => setRecipient(e.target.value)}
-                  className="w-full bg-surface-container border border-outline rounded-xl px-3 py-2.5 text-on-surface outline-none focus:border-accent-primary font-medium"
-                >
-                  <option value="">Pilih rekan kerja...</option>
-                  {employees.filter(e => e.id !== activeEmployeeId).map(e => (
-                    <option key={e.id} value={e.id}>{e.name} ({e.role})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="font-bold text-on-surface-variant block">Pesan Apresiasi:</label>
-                  <span className="text-[10px] font-mono text-on-surface-variant">{message.length}/180</span>
-                </div>
-                <textarea 
-                  value={message}
-                  maxLength={180}
-                  onChange={(e) => setMessage(e.target.value)}
-                  rows={3} 
-                  className="w-full bg-surface-container border border-outline rounded-xl p-3 text-on-surface outline-none focus:border-accent-primary resize-none font-medium"
-                  placeholder="Tulis pujian atau ucapan terima kasih atas kontribusi rekanmu..."
-                />
-              </div>
-              <button 
-                onClick={handleSendKudos}
-                className="w-full bg-accent-primary hover:bg-accent-primary/90 text-white font-bold py-2.5 rounded-xl transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer font-display"
+            <p className="text-xs text-on-surface-variant mb-4 font-medium">Buka panel komprehensif untuk mengirimkan apresiasi kepada rekan kerjamu dengan mudah tanpa berpindah halaman.</p>
+            <button 
+                onClick={() => {
+                  sound.playClick()
+                  window.dispatchEvent(new CustomEvent('open-slideover', { detail: { type: 'kudos' } }))
+                }}
+                className="w-full bg-accent-primary hover:bg-accent-primary/90 text-white font-bold py-3 rounded-xl transition-all text-xs flex items-center justify-center gap-1.5 cursor-pointer font-display shadow-md"
               >
-                <Send className="w-3.5 h-3.5" /> Kirim Kudos
+                <Send className="w-4 h-4" /> Buka Panel Kudos
               </button>
-            </div>
           </div>
 
           <div className="glass-panel p-6 rounded-3xl border border-outline">

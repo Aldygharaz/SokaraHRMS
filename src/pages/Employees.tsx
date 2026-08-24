@@ -1,10 +1,13 @@
 import { useHRStore, type Employee } from '@/store/useHRStore'
 import { TiltCard } from '@/components/motion/TiltCard'
-import { UserPlus, Star, ShieldCheck, FilterX, X, Trash2, MessageCircle, Calendar } from 'lucide-react'
-import { useState, useMemo, useEffect } from 'react'
+import { UserPlus, Star, ShieldCheck, FilterX, X, Trash2, MessageCircle, Calendar, Search } from 'lucide-react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { cn, formatThousandDots, parseThousandDots } from '@/lib/utils'
 import { toast } from 'sonner'
 import { sound } from '@/lib/sound'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { SlideOver } from '@/components/ui/SlideOver'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 export function Employees() {
   const employees = useHRStore(state => state.employees)
@@ -12,9 +15,17 @@ export function Employees() {
   const addEmployee = useHRStore(state => state.addEmployee)
   const deleteEmployee = useHRStore(state => state.deleteEmployee)
   
+  const [activeMainTab, setActiveMainTab] = useState<'directory' | 'matrix'>('directory')
   const [activeFilter, setActiveFilter] = useState('Semua')
+  const [searchQuery, setSearchQuery] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
+  
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Floating Bulk Action State
+  const [selectedBulkIds, setSelectedBulkIds] = useState<number[]>([])
 
   // Form State
   const [formData, setFormData] = useState({
@@ -33,7 +44,12 @@ export function Employees() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'f') {
         setActiveFilter('Semua')
-        toast.info('Filter karyawan direset (Ctrl+Shift+F)')
+        setSearchQuery('')
+        toast.info('Filter & pencarian karyawan direset (Ctrl+Shift+F)')
+      }
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -42,13 +58,26 @@ export function Employees() {
 
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
-      if (activeFilter === 'Semua') return true
-      if (activeFilter === 'Barista') return emp.dept === 'Bar' || emp.role.includes('Barista')
-      if (activeFilter === 'Kasir') return emp.dept === 'Front' || emp.role.includes('Kasir')
-      if (activeFilter === 'High Risk') return (emp.attritionRisk || 0) > 40
-      return true
+      // 1. Category Filter
+      let matchesFilter = true
+      if (activeFilter === 'Barista') matchesFilter = emp.dept === 'Bar' || emp.role.includes('Barista')
+      else if (activeFilter === 'Kasir') matchesFilter = emp.dept === 'Front' || emp.role.includes('Kasir')
+      else if (activeFilter === 'High Risk') matchesFilter = (emp.attritionRisk || 0) > 40
+
+      if (!matchesFilter) return false
+
+      // 2. Search Query Filter
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.toLowerCase()
+      const matchesName = emp.name.toLowerCase().includes(q)
+      const matchesRole = emp.role.toLowerCase().includes(q)
+      const matchesDept = emp.dept.toLowerCase().includes(q)
+      const matchesSkills = emp.skills?.some(s => s.toLowerCase().includes(q))
+      const matchesPtkp = emp.ptkp?.toLowerCase().includes(q)
+
+      return matchesName || matchesRole || matchesDept || matchesSkills || matchesPtkp
     })
-  }, [employees, activeFilter])
+  }, [employees, activeFilter, searchQuery])
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -147,112 +176,353 @@ export function Employees() {
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2">
-        {[
-          { id: 'Semua', label: 'Semua', count: employees.length },
-          { id: 'Barista', label: 'Barista', count: employees.filter(e => e.dept === 'Bar' || e.role.includes('Barista')).length },
-          { id: 'Kasir', label: 'Kasir', count: employees.filter(e => e.dept === 'Front' || e.role.includes('Kasir')).length },
-          { id: 'High Risk', label: 'High Risk', count: employees.filter(e => (e.attritionRisk || 0) > 40).length }
-        ].map(({ id, label, count }) => (
-          <button
-            key={id}
-            data-testid={`filter-${id.toLowerCase().replace(/\s+/g, '-')}`}
-            onClick={() => {
-              sound.playClick()
-              setActiveFilter(id)
-            }}
-            className={cn(
-              "px-4 py-2 rounded-full text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5",
-              activeFilter === id 
-                ? "bg-accent-primary text-white border-accent-primary shadow-md" 
-                : "bg-surface-container hover:bg-surface-container-high text-on-surface-variant border-outline"
-            )}
-          >
-            <span>{label}</span>
-            <span className={cn(
-              "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
-              activeFilter === id ? "bg-white/20 text-white" : "bg-surface-container-high text-on-surface-variant"
-            )}>
-              {count}
-            </span>
-          </button>
-        ))}
-        {activeFilter !== 'Semua' && (
-          <button 
-            onClick={() => {
-              sound.playClick()
-              setActiveFilter('Semua')
-            }}
-            className="ml-auto flex items-center gap-1 text-xs font-bold text-on-surface-variant hover:text-on-surface px-3 py-2 transition-colors cursor-pointer"
-            title="Reset Filter (Ctrl+Shift+F)"
-          >
-            <FilterX className="w-4 h-4" /> Reset
-          </button>
-        )}
+      {/* Main View Tabs */}
+      <div className="flex items-center gap-2 border-b border-outline pb-2">
+        <button
+          onClick={() => { sound.playClick(); setActiveMainTab('directory') }}
+          className={cn(
+            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer",
+            activeMainTab === 'directory' ? "bg-accent-primary text-white shadow-sm" : "text-on-surface-variant hover:bg-surface-container"
+          )}
+        >
+          Direktori Karyawan ({employees.length})
+        </button>
+        <button
+          onClick={() => { sound.playClick(); setActiveMainTab('matrix') }}
+          className={cn(
+            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+            activeMainTab === 'matrix' ? "bg-accent-primary text-white shadow-sm" : "text-on-surface-variant hover:bg-surface-container"
+          )}
+        >
+          <ShieldCheck className="w-4 h-4" /> Station Skill Matrix & Readiness
+        </button>
       </div>
 
-      {/* Employee Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {filteredEmployees.map((emp) => (
-          <TiltCard 
-            key={emp.id} 
-            onClick={() => {
-              sound.playClick()
-              setSelectedEmployee(emp)
-            }}
-            className="glass-panel rounded-2xl border border-outline p-5 group hover:border-accent-primary/40 transition-all cursor-pointer flex flex-col h-full"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="relative">
-                <img src={emp.avatar} alt={emp.name} className="w-16 h-16 rounded-2xl object-cover border-2 border-surface-container-high group-hover:border-accent-primary transition-colors" />
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-psy-safe text-white rounded-full flex items-center justify-center border-2 border-surface" title="Status: Aktif">
-                  <ShieldCheck className="w-3 h-3" />
-                </div>
-              </div>
-              <span className={cn(
-                "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                (emp.attritionRisk || 0) > 40 ? "bg-psy-danger-bg text-psy-danger-text border border-psy-danger/20" : "bg-psy-safe-bg text-psy-safe-text border border-psy-safe/20"
-              )}>
-                {(emp.attritionRisk || 0) > 40 ? 'Risk Tinggi' : 'Stabil'}
-              </span>
-            </div>
-            
-            <div className="mb-4 flex-grow">
-              <h3 className="font-bold text-base text-on-surface font-display">{emp.name}</h3>
-              <p className="text-xs text-on-surface-variant font-medium">{emp.role} • {emp.dept}</p>
+      {activeMainTab === 'directory' ? (
+        <>
+          {/* Search & Filter Bar */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-surface-container-low p-3.5 rounded-2xl border border-outline">
+            {/* Search Input Bar */}
+            <div className="relative flex-1 max-w-md flex items-center">
+              <Search className="w-4 h-4 text-accent-primary absolute left-3.5 pointer-events-none" />
+              <input 
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari nama, divisi, role, skill barista... (Tekan '/' untuk fokus)"
+                className="w-full bg-surface-container-lowest border border-outline rounded-xl pl-9 pr-8 py-2 text-xs font-medium text-on-surface outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-inner"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 p-1 rounded-md hover:bg-surface-container-high text-on-surface-variant cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            <div className="space-y-3 mt-auto">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-on-surface-variant font-medium">Performa KPI</span>
-                <span className="flex items-center gap-1 font-bold text-on-surface font-mono">
-                  <Star className="w-3.5 h-3.5 text-warning fill-warning" /> {emp.rating}
+            {/* Filter Pills */}
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { id: 'Semua', label: 'Semua', count: employees.length },
+                { id: 'Barista', label: 'Barista', count: employees.filter(e => e.dept === 'Bar' || e.role.includes('Barista')).length },
+                { id: 'Kasir', label: 'Kasir', count: employees.filter(e => e.dept === 'Front' || e.role.includes('Kasir')).length },
+                { id: 'High Risk', label: 'High Risk', count: employees.filter(e => (e.attritionRisk || 0) > 40).length }
+              ].map(({ id, label, count }) => (
+                <button
+                  key={id}
+                  data-testid={`filter-${id.toLowerCase().replace(/\s+/g, '-')}`}
+                  onClick={() => {
+                    sound.playClick()
+                    setActiveFilter(id)
+                  }}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5",
+                    activeFilter === id 
+                      ? "bg-accent-primary text-white border-accent-primary shadow-sm" 
+                      : "bg-surface-container-lowest hover:bg-surface-container-high text-on-surface-variant border-outline"
+                  )}
+                >
+                  <span>{label}</span>
+                  <span className={cn(
+                    "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                    activeFilter === id ? "bg-white/20 text-white" : "bg-surface-container text-on-surface-variant"
+                  )}>
+                    {count}
+                  </span>
+                </button>
+              ))}
+
+              {(activeFilter !== 'Semua' || searchQuery) && (
+                <button 
+                  onClick={() => {
+                    sound.playClick()
+                    setActiveFilter('Semua')
+                    setSearchQuery('')
+                  }}
+                  className="flex items-center gap-1 text-xs font-bold text-on-surface-variant hover:text-accent-primary px-2.5 py-1.5 transition-colors cursor-pointer"
+                  title="Reset Filter & Pencarian (Ctrl+Shift+F)"
+                >
+                  <FilterX className="w-3.5 h-3.5" /> Reset
+                </button>
+              )}
+            </div>
+          </div>
+
+          {filteredEmployees.length === 0 ? (
+            <div className="col-span-full">
+              <EmptyState
+                icon={FilterX}
+                title="Tidak Ada Karyawan Ditemukan"
+                description={searchQuery 
+                  ? `Pencarian "${searchQuery}" tidak cocok dengan nama atau kualifikasi staf manapun.`
+                  : `Filter "${activeFilter}" tidak memiliki staf yang terdaftar.`}
+                actionLabel="Reset Pencarian & Filter"
+                onAction={() => { 
+                  sound.playClick()
+                  setActiveFilter('Semua')
+                  setSearchQuery('')
+                }}
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
+              {filteredEmployees.map((emp) => {
+                const isSelected = selectedBulkIds.includes(emp.id)
+                
+                return (
+                <TiltCard 
+                  key={emp.id} 
+                  onClick={() => {
+                    sound.playClick()
+                    setSelectedEmployee(emp)
+                  }}
+                  className={cn(
+                    "glass-panel rounded-2xl border p-5 group transition-all cursor-pointer flex flex-col h-full relative",
+                    isSelected ? "border-accent-primary bg-accent-primary/5 ring-1 ring-accent-primary" : "border-outline hover:border-accent-primary/40"
+                  )}
+                >
+                  {/* Bulk Select Checkbox */}
+                  {activeRole === 'manager' && (
+                    <div 
+                      className="absolute top-4 right-4 z-10"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        sound.playClick()
+                        setSelectedBulkIds(prev => 
+                          prev.includes(emp.id) ? prev.filter(id => id !== emp.id) : [...prev, emp.id]
+                        )
+                      }}
+                    >
+                      <div className={cn(
+                        "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
+                        isSelected ? "bg-accent-primary border-accent-primary text-white" : "border-outline bg-surface-container hover:border-accent-primary"
+                      )}>
+                        {isSelected && <ShieldCheck className="w-3.5 h-3.5" />}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-start mb-4 pr-6">
+                    <div className="relative">
+                      <img src={emp.avatar} alt={emp.name} className="w-16 h-16 rounded-2xl object-cover border-2 border-surface-container-high group-hover:border-accent-primary transition-colors" />
+                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-psy-safe text-white rounded-full flex items-center justify-center border-2 border-surface" title="Status: Aktif">
+                        <ShieldCheck className="w-3 h-3" />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="inline-block px-2.5 py-1 bg-surface-container-high text-on-surface-variant font-mono text-[10px] font-bold rounded-lg border border-outline mb-1">
+                        {emp.dept}
+                      </span>
+                      <p className="text-[10px] font-mono text-on-surface-variant font-medium">TER: {emp.kat}</p>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <h3 className="font-bold text-on-surface text-base group-hover:text-accent-primary transition-colors font-display">{emp.name}</h3>
+                    <p className="text-xs text-on-surface-variant font-medium">{emp.role}</p>
+                  </div>
+
+                  <div className="mt-auto space-y-3 pt-3 border-t border-outline">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-on-surface-variant font-medium">Rating</span>
+                      <span className="font-bold font-mono text-on-surface flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 fill-semantic-warning text-semantic-warning" />
+                        {emp.rating}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-on-surface-variant font-medium">Punctuality</span>
+                      <span className="font-bold font-mono text-psy-safe">{emp.punctuality}%</span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {emp.skills.map((skill, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-surface-container-high text-on-surface-variant text-[10px] font-bold rounded-md border border-outline">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </TiltCard>
+              )})}
+            </div>
+          )}
+
+          {/* Floating Bulk Action Bar (Asana/Linear UX) */}
+          {selectedBulkIds.length > 0 && activeRole === 'manager' && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-surface/95 backdrop-blur-xl border border-accent-primary/50 shadow-2xl rounded-2xl p-2.5 flex flex-wrap items-center justify-center gap-2 animate-in slide-in-from-bottom-5">
+              <div className="flex items-center gap-2 pl-2 pr-3 border-r border-outline">
+                <span className="w-2 h-2 rounded-full bg-accent-primary animate-ping" />
+                <span className="font-bold text-xs font-mono text-on-surface whitespace-nowrap">
+                  {selectedBulkIds.length} Staf Terpilih
                 </span>
               </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-on-surface-variant font-medium">Ketepatan Waktu</span>
-                <span className="font-bold text-psy-safe font-mono">{emp.punctuality}%</span>
-              </div>
-              
-              <div className="pt-3 border-t border-dashed border-outline flex flex-wrap gap-1.5">
-                {emp.skills.map((skill, idx) => (
-                  <span key={idx} className="px-2 py-0.5 bg-surface-container-high text-on-surface-variant text-[10px] font-bold rounded-md border border-outline">
-                    {skill}
-                  </span>
-                ))}
+
+              <div className="flex items-center gap-1.5 text-xs">
+                <button 
+                  onClick={() => {
+                    sound.playSuccess()
+                    toast.success(`${selectedBulkIds.length} staf berhasil di-approve / diverifikasi.`)
+                    setSelectedBulkIds([])
+                    import('@/lib/confetti').then(({ fireConfetti }) => fireConfetti())
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-accent-primary text-white font-bold hover:shadow-md transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <ShieldCheck className="w-4 h-4" /> Approve Verifikasi
+                </button>
+
+                <button 
+                  onClick={() => {
+                    sound.playClick()
+                    toast.info(`Opsi edit shift massal untuk ${selectedBulkIds.length} staf (WIP).`)
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-bold border border-outline transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                >
+                  <Calendar className="w-4 h-4" /> Assign Shift (Batch)
+                </button>
+
+                <button 
+                  onClick={() => {
+                    sound.playClick()
+                    setSelectedBulkIds([])
+                  }}
+                  className="p-1.5 rounded-xl hover:bg-surface-container-high text-on-surface-variant cursor-pointer ml-1 shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
             </div>
-          </TiltCard>
-        ))}
-      </div>
+          )}
+        </>
+      ) : (
+        /* Station Skill Matrix & Readiness View (7shifts / Toast Standard) */
+        <div className="glass-panel spotlight-card rounded-3xl overflow-hidden overflow-x-auto border border-outline">
+          <div className="p-4 border-b border-outline bg-surface-container-lowest flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-sm text-on-surface font-display uppercase tracking-wider">
+                Station Skill Matrix & Operational Readiness
+              </h3>
+              <p className="text-xs text-on-surface-variant">Pemetaan kompetensi stasiun kerja per staf untuk auto-scheduling bebas botleneck</p>
+            </div>
+            <span className="text-xs font-mono text-on-surface-variant">{employees.length} Staf Terpetakan</span>
+          </div>
+
+          <table className="w-full text-left border-collapse min-w-[800px]">
+            <thead>
+              <tr className="bg-surface-container-low border-b border-surface-container-high text-xs text-on-surface-variant uppercase tracking-wider font-bold">
+                <th className="p-4">Karyawan</th>
+                <th className="p-4">Espresso Bar</th>
+                <th className="p-4">POS Frontline</th>
+                <th className="p-4">Cold Kitchen</th>
+                <th className="p-4">Closing Sanitasi</th>
+                <th className="p-4">Ketersediaan</th>
+                <th className="p-4">Tingkat Risiko</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-container-high text-xs">
+              {employees.map(emp => {
+                const isBarista = emp.dept === 'Bar' || emp.role.includes('Barista')
+                const isKasir = emp.dept === 'Front' || emp.role.includes('Kasir')
+                const hasUnavail = emp.unavailability && emp.unavailability.length > 0
+
+                return (
+                  <tr key={emp.id} className="hover:bg-surface-container/60 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <img src={emp.avatar} alt={emp.name} className="w-8 h-8 rounded-xl object-cover border border-outline" />
+                        <div>
+                          <p className="font-bold text-on-surface">{emp.name}</p>
+                          <p className="text-[10px] text-on-surface-variant">{emp.role}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className={cn(
+                        "px-2.5 py-1 rounded-lg font-mono text-[10px] font-bold",
+                        isBarista ? "bg-accent-primary/20 text-accent-primary border border-accent-primary/30" : "bg-surface-container text-on-surface-variant"
+                      )}>
+                        {isBarista ? '★ Master Barista' : 'Basic Espresso'}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={cn(
+                        "px-2.5 py-1 rounded-lg font-mono text-[10px] font-bold",
+                        isKasir ? "bg-tertiary/20 text-tertiary border border-tertiary/30" : "bg-surface-container text-on-surface-variant"
+                      )}>
+                        {isKasir ? '★ Kasir Lead' : 'Basic POS'}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface-variant font-mono text-[10px] font-bold">
+                        ✓ Food Safety
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className="px-2.5 py-1 rounded-lg bg-semantic-warning/20 text-semantic-warning border border-semantic-warning/30 font-mono text-[10px] font-bold">
+                        ✓ Lead Closing
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      {hasUnavail ? (
+                        <span className="px-2 py-0.5 rounded-full bg-psy-warning-bg text-psy-warning-text font-bold text-[10px] font-mono">
+                          Kuliah ({emp.unavailability?.length} Hari)
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-psy-safe-bg text-psy-safe-text font-bold text-[10px] font-mono">
+                          Full-Time
+                        </span>
+                      )}
+                    </td>
+                    <td className="p-4">
+                      <span className={cn(
+                        "px-2 py-0.5 rounded-full font-mono text-[10px] font-bold",
+                        (emp.attritionRisk || 0) > 40 ? "bg-error/10 text-error" : "bg-psy-safe-bg text-psy-safe-text"
+                      )}>
+                        {(emp.attritionRisk || 0) > 40 ? `High Risk (${emp.attritionRisk}%)` : `Rendah (${emp.attritionRisk || 12}%)`}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal Detail Karyawan */}
-      {selectedEmployee && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setSelectedEmployee(null)} />
-          <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-lg p-6 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-start mb-6">
+      <SlideOver
+        isOpen={!!selectedEmployee}
+        onClose={() => setSelectedEmployee(null)}
+        title="Profil & Analisis Karyawan"
+        width="max-w-lg"
+      >
+        {selectedEmployee && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
                 <img src={selectedEmployee.avatar} alt={selectedEmployee.name} className="w-16 h-16 rounded-2xl object-cover border-2 border-accent-primary" />
                 <div>
@@ -263,22 +533,19 @@ export function Employees() {
                   </span>
                 </div>
               </div>
-              <button onClick={() => setSelectedEmployee(null)} className="p-2 hover:bg-surface-container-high rounded-full cursor-pointer">
-                <X className="w-4 h-4 text-on-surface-variant" />
-              </button>
             </div>
 
             {/* Performance Stats */}
-            <div className="grid grid-cols-3 gap-3 mb-5">
-              <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center shadow-sm">
                 <p className="text-[10px] text-on-surface-variant uppercase font-bold">Rating</p>
                 <p className="text-lg font-bold text-on-surface font-mono mt-0.5">{selectedEmployee.rating} / 5.0</p>
               </div>
-              <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center">
+              <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center shadow-sm">
                 <p className="text-[10px] text-on-surface-variant uppercase font-bold">Punctuality</p>
                 <p className="text-lg font-bold text-psy-safe font-mono mt-0.5">{selectedEmployee.punctuality}%</p>
               </div>
-              <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center">
+              <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center shadow-sm">
                 <p className="text-[10px] text-on-surface-variant uppercase font-bold">Attrition Risk</p>
                 <p className={cn("text-lg font-bold font-mono mt-0.5", (selectedEmployee.attritionRisk || 0) > 40 ? "text-psy-danger" : "text-psy-safe")}>
                   {selectedEmployee.attritionRisk || 5}%
@@ -287,7 +554,7 @@ export function Employees() {
             </div>
 
             {/* Salary Breakdown */}
-            <div className="p-4 bg-surface-container-low rounded-2xl border border-outline space-y-2 text-xs mb-5">
+            <div className="p-4 bg-surface-container-low rounded-2xl border border-outline space-y-2 text-xs shadow-sm">
               <div className="flex justify-between">
                 <span className="text-on-surface-variant font-medium">Gaji Pokok:</span>
                 <span className="font-bold font-mono text-on-surface">Rp {selectedEmployee.baseSalary.toLocaleString('id-ID')}</span>
@@ -305,7 +572,7 @@ export function Employees() {
             </div>
 
             {/* Weekly Mini-Roster 7-Day Matrix */}
-            <div className="space-y-2 mb-5">
+            <div className="space-y-2">
               <div className="flex justify-between items-center text-xs font-bold text-on-surface-variant">
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-accent-primary" /> Roster 7 Hari Ini:
@@ -316,7 +583,7 @@ export function Employees() {
                 {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((day, idx) => {
                   const shift = (shifts[selectedEmployee.id] || Array(7).fill('OFF'))[idx] || 'OFF'
                   return (
-                    <div key={idx} className="p-2 rounded-xl bg-surface-container-lowest border border-outline space-y-1">
+                    <div key={idx} className="p-2 rounded-xl bg-surface-container-lowest border border-outline space-y-1 shadow-sm">
                       <p className="text-[10px] text-on-surface-variant font-bold">{day}</p>
                       <span className={cn(
                         "text-[9px] font-bold px-1 py-0.5 rounded block",
@@ -333,172 +600,176 @@ export function Employees() {
               </div>
             </div>
 
-            {/* Modal Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-outline">
-              <div className="flex items-center gap-2">
-                <a 
-                  href={`https://wa.me/6281234567890?text=Halo%20${encodeURIComponent(selectedEmployee.name)},%20terkait%20jadwal%20operasional%20kedai%20Senopati...`}
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  onClick={() => sound.playClick()}
-                  className="px-3.5 py-2 rounded-xl bg-psy-safe-bg text-psy-safe-text hover:bg-psy-safe hover:text-white border border-psy-safe/30 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <MessageCircle className="w-4 h-4" /> Hubungi WhatsApp
-                </a>
-
-                {activeRole === 'manager' && (
-                  <button
-                    onClick={() => handleDelete(selectedEmployee.id, selectedEmployee.name)}
-                    className="px-3.5 py-2 rounded-xl border border-psy-danger/30 text-psy-danger hover:bg-psy-danger/10 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" /> Hapus
-                  </button>
-                )}
-              </div>
-
-              <button
-                onClick={() => setSelectedEmployee(null)}
-                className="px-5 py-2 rounded-xl bg-accent-primary text-white text-xs font-bold hover:shadow-md transition-all cursor-pointer font-display"
+            {/* SlideOver Actions */}
+            <div className="flex flex-col gap-3 pt-4 border-t border-outline">
+              <a 
+                href={`https://wa.me/6281234567890?text=Halo%20${encodeURIComponent(selectedEmployee.name)},%20terkait%20jadwal%20operasional%20kedai%20Senopati...`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={() => sound.playClick()}
+                className="w-full py-3 rounded-xl bg-psy-safe text-white hover:bg-psy-safe/90 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md"
               >
-                Tutup
-              </button>
+                <MessageCircle className="w-4 h-4" /> Hubungi WhatsApp
+              </a>
+
+              {activeRole === 'manager' && (
+                <button
+                  onClick={() => {
+                    sound.playClick()
+                    setDeleteTarget(selectedEmployee)
+                  }}
+                  className="w-full py-3 rounded-xl border border-psy-danger/30 text-psy-danger hover:bg-psy-danger/10 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" /> Hapus Data Karyawan
+                </button>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </SlideOver>
 
-      {/* Modal Tambah Karyawan */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowAddModal(false)} />
-          <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-5">
-              <div>
-                <h3 className="font-bold font-display text-lg text-on-surface">Tambah Karyawan Baru</h3>
-                <p className="text-xs text-on-surface-variant">Lengkapi data profil dan struktur penggajian</p>
-              </div>
-              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-surface-container-high rounded-full cursor-pointer">
-                <X className="w-4 h-4 text-on-surface-variant" />
-              </button>
+      {/* SlideOver Tambah Karyawan */}
+      <SlideOver
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Tambah Karyawan Baru"
+        width="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-on-surface-variant mb-2">Lengkapi data profil dan struktur penggajian untuk mendaftarkan staf baru ke dalam sistem.</p>
+          <form onSubmit={handleAddSubmit} className="space-y-4 text-xs">
+            <div>
+              <label className="font-bold text-on-surface-variant block mb-1">Nama Lengkap</label>
+              <input 
+                type="text" 
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Contoh: Reza Rahardian"
+                className="w-full bg-surface-container-lowest border border-outline rounded-xl p-3 text-on-surface font-medium outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+                required
+              />
             </div>
 
-            <form onSubmit={handleAddSubmit} className="space-y-3.5 text-xs">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-bold text-on-surface-variant block mb-1">Nama Lengkap</label>
+                <label className="font-bold text-on-surface-variant block mb-1">Posisi / Role</label>
                 <input 
                   type="text" 
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Contoh: Reza Rahardian"
-                  className="w-full bg-surface-container-low border border-outline rounded-xl p-2.5 text-on-surface font-medium outline-none focus:border-accent-primary"
-                  required
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  className="w-full bg-surface-container-lowest border border-outline rounded-xl p-3 text-on-surface font-medium outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-on-surface-variant block mb-1">Posisi / Role</label>
-                  <input 
-                    type="text" 
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full bg-surface-container-low border border-outline rounded-xl p-2.5 text-on-surface font-medium outline-none focus:border-accent-primary"
-                  />
-                </div>
-                <div>
-                  <label className="font-bold text-on-surface-variant block mb-1">Departemen</label>
-                  <select 
-                    value={formData.dept}
-                    onChange={(e) => setFormData({ ...formData, dept: e.target.value })}
-                    className="w-full bg-surface-container-low border border-outline rounded-xl p-2.5 text-on-surface font-medium outline-none focus:border-accent-primary"
-                  >
-                    <option value="Bar">Bar (Barista)</option>
-                    <option value="Front">Front (Kasir/Server)</option>
-                    <option value="Kitchen">Kitchen</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-on-surface-variant block mb-1">Gaji Pokok (Rp)</label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-2.5 text-xs font-mono font-bold text-on-surface-variant pointer-events-none">Rp</span>
-                    <input 
-                      type="text" 
-                      inputMode="numeric"
-                      value={formatThousandDots(formData.baseSalary)}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setFormData({ ...formData, baseSalary: parseThousandDots(e.target.value) })}
-                      placeholder="Contoh: 4.500.000"
-                      className="w-full pl-8 bg-surface-container-low border border-outline rounded-xl p-2.5 text-on-surface font-mono font-medium outline-none focus:border-accent-primary"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="font-bold text-on-surface-variant block mb-1">Upah Lembur / Jam (Rp)</label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-2.5 text-xs font-mono font-bold text-on-surface-variant pointer-events-none">Rp</span>
-                    <input 
-                      type="text" 
-                      inputMode="numeric"
-                      value={formatThousandDots(formData.rate)}
-                      onFocus={(e) => e.target.select()}
-                      onChange={(e) => setFormData({ ...formData, rate: parseThousandDots(e.target.value) })}
-                      placeholder="Contoh: 25.000"
-                      className="w-full pl-8 bg-surface-container-low border border-outline rounded-xl p-2.5 text-on-surface font-mono font-medium outline-none focus:border-accent-primary"
-                    />
-                  </div>
-                </div>
-              </div>
-
               <div>
-                <label className="font-bold text-on-surface-variant block mb-1">TER Kategori & PTKP</label>
+                <label className="font-bold text-on-surface-variant block mb-1">Departemen</label>
                 <select 
-                  value={`${formData.kat}-${formData.ptkp}`}
-                  onChange={(e) => {
-                    const [kat, ptkp] = e.target.value.split('-')
-                    setFormData({ ...formData, kat, ptkp })
-                  }}
-                  className="w-full bg-surface-container-low border border-outline rounded-xl p-2.5 text-on-surface font-medium outline-none focus:border-accent-primary"
+                  value={formData.dept}
+                  onChange={(e) => setFormData({ ...formData, dept: e.target.value })}
+                  className="w-full bg-surface-container-lowest border border-outline rounded-xl p-3 text-on-surface font-medium outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
                 >
-                  <option value="A-TK/0">Kategori A (TK/0)</option>
-                  <option value="A-TK/1">Kategori A (TK/1)</option>
-                  <option value="B-K/1">Kategori B (K/1)</option>
-                  <option value="C-K/3">Kategori C (K/3)</option>
+                  <option value="Bar">Bar (Barista)</option>
+                  <option value="Front">Front (Kasir/Server)</option>
+                  <option value="Kitchen">Kitchen</option>
                 </select>
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-bold text-on-surface-variant block mb-1">Skill / Kompetensi (Pisahkan Koma)</label>
-                <input 
-                  type="text" 
-                  value={formData.skills}
-                  onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-                  placeholder="Contoh: Barista Senior, POS Master, Latte Art"
-                  className="w-full bg-surface-container-low border border-outline rounded-xl p-2.5 text-on-surface font-medium outline-none focus:border-accent-primary"
-                />
+                <label className="font-bold text-on-surface-variant block mb-1">Gaji Pokok (Rp)</label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-xs font-mono font-bold text-on-surface-variant pointer-events-none">Rp</span>
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    value={formatThousandDots(formData.baseSalary)}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setFormData({ ...formData, baseSalary: parseThousandDots(e.target.value) })}
+                    placeholder="Contoh: 4.500.000"
+                    className="w-full pl-9 bg-surface-container-lowest border border-outline rounded-xl p-3 text-on-surface font-mono font-medium outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+                  />
+                </div>
               </div>
+              <div>
+                <label className="font-bold text-on-surface-variant block mb-1">Upah Lembur / Jam (Rp)</label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-xs font-mono font-bold text-on-surface-variant pointer-events-none">Rp</span>
+                  <input 
+                    type="text" 
+                    inputMode="numeric"
+                    value={formatThousandDots(formData.rate)}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setFormData({ ...formData, rate: parseThousandDots(e.target.value) })}
+                    placeholder="Contoh: 25.000"
+                    className="w-full pl-9 bg-surface-container-lowest border border-outline rounded-xl p-3 text-on-surface font-mono font-medium outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+                  />
+                </div>
+              </div>
+            </div>
 
-              <div className="flex gap-2 pt-3">
-                <button 
-                  type="button" 
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-outline hover:bg-surface-container text-on-surface-variant font-bold cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-accent-primary to-primary text-white font-bold flex items-center justify-center gap-1.5 hover:shadow-lg transition-all cursor-pointer font-display"
-                >
-                  <UserPlus className="w-3.5 h-3.5" /> Simpan Karyawan
-                </button>
-              </div>
-            </form>
-          </div>
+            <div>
+              <label className="font-bold text-on-surface-variant block mb-1">TER Kategori & PTKP</label>
+              <select 
+                value={`${formData.kat}-${formData.ptkp}`}
+                onChange={(e) => {
+                  const [kat, ptkp] = e.target.value.split('-')
+                  setFormData({ ...formData, kat, ptkp })
+                }}
+                className="w-full bg-surface-container-lowest border border-outline rounded-xl p-3 text-on-surface font-medium outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+              >
+                <option value="A-TK/0">Kategori A (TK/0)</option>
+                <option value="A-TK/1">Kategori A (TK/1)</option>
+                <option value="B-K/1">Kategori B (K/1)</option>
+                <option value="C-K/3">Kategori C (K/3)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="font-bold text-on-surface-variant block mb-1">Skill / Kompetensi (Pisahkan Koma)</label>
+              <input 
+                type="text" 
+                value={formData.skills}
+                onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
+                placeholder="Contoh: Barista Senior, POS Master, Latte Art"
+                className="w-full bg-surface-container-lowest border border-outline rounded-xl p-3 text-on-surface font-medium outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 pt-6 mt-4 border-t border-outline">
+              <button 
+                type="submit"
+                className="w-full py-3.5 rounded-xl bg-accent-primary text-white font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all cursor-pointer font-display shadow-md"
+              >
+                <UserPlus className="w-4 h-4" /> Simpan Data Karyawan
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setShowAddModal(false)}
+                className="w-full py-3.5 rounded-xl border border-outline hover:bg-surface-container text-on-surface-variant font-bold cursor-pointer transition-colors"
+              >
+                Batal & Tutup
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </SlideOver>
+
+      {/* Confirm Modal Hapus Karyawan */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) {
+            handleDelete(deleteTarget.id, deleteTarget.name)
+            setDeleteTarget(null)
+          }
+        }}
+        title={`Hapus Data ${deleteTarget?.name}?`}
+        description={`Tindakan ini akan menghapus data profil, riwayat penugasan shift mingguan, dan konfigurasi penggajian ${deleteTarget?.name}. Anda masih dapat membatalkannya melalui tombol Undo.`}
+        confirmText="Hapus Permanen"
+        cancelText="Batal"
+        variant="danger"
+      />
     </div>
   )
 }

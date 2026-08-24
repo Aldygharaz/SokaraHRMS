@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useHRStore } from '@/store/useHRStore'
-import { Printer, Wand2, Filter, Edit3, X, Scale, Send, Layers, Users, Sun, Sparkles, GraduationCap, CheckCheck, Bookmark, DollarSign, Flame, Plus, Check, ArrowRight } from 'lucide-react'
+import { Printer, Wand2, Filter, Edit3, X, Send, Layers, Users, Sun, Sparkles, GraduationCap, CheckCheck, Bookmark, DollarSign, Flame, Plus, Check, ArrowRight, ShieldCheck, Activity, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { sound } from '@/lib/sound'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { BRANCH_PROFILES } from '@/lib/branches'
+import { auditRosterHealth, generateOptimizedSchedule, resolveScheduleConflicts } from '@/lib/schedulerEngine'
 
 const SHIFT_TOOLTIPS: Record<string, string> = {
   'Pagi': 'Shift Pagi: 08:00 - 17:00 WIB (9 Jam Operasional)',
@@ -35,6 +36,7 @@ export function Calendar() {
   const [editTarget, setEditTarget] = useState<{empId: number, dayIdx: number, empName: string, currentShift: string, dayName: string} | null>(null)
   const [selectedCells, setSelectedCells] = useState<string[]>([])
   const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [showHealthModal, setShowHealthModal] = useState(false)
   const [newTemplateName, setNewTemplateName] = useState('')
   const [selectedTemplateName, setSelectedTemplateName] = useState('Standar Operasional Regular')
   const [diffModal, setDiffModal] = useState<{
@@ -42,6 +44,9 @@ export function Calendar() {
     newFairness: number
     totalAssigned: number
   } | null>(null)
+
+  const currentBranch = BRANCH_PROFILES[activeBranch] || BRANCH_PROFILES['Senopati (HQ)']
+  const healthReport = useMemo(() => auditRosterHealth(shifts, employees, currentBranch), [shifts, employees, currentBranch])
   
   const filteredEmployees = useMemo(() => {
     return employees.filter(emp => {
@@ -53,8 +58,6 @@ export function Calendar() {
       return false
     })
   }, [employees, filter, shifts])
-
-  const currentBranch = BRANCH_PROFILES[activeBranch] || BRANCH_PROFILES['Senopati (HQ)']
 
   // Headcount, Demand Forecast, & Labor Cost Metrics per day
   const dayMetrics = useMemo(() => {
@@ -290,6 +293,55 @@ export function Calendar() {
     setDiffModal(null)
   }
 
+  const handleAutoResolveConflicts = () => {
+    sound.playSuccess()
+    const prevShifts = { ...shifts }
+    const { newShifts, resolvedCount } = resolveScheduleConflicts(shifts, employees)
+    
+    useHRStore.setState({ shifts: newShifts, rosterStatus: 'draft' })
+    addAuditLog({
+      user: 'AI Scheduler',
+      action: 'Poka-Yoke Auto-Resolve',
+      detail: `Menyelesaikan otomatis ${resolvedCount} konflik jadwal dan rest time`
+    })
+
+    toast.success(`Berhasil menyelesaikan ${resolvedCount} anomali jadwal!`, {
+      description: "Jadwal telah disesuaikan agar patuh regulasi dan ketersediaan staf.",
+      action: {
+        label: "Undo",
+        onClick: () => {
+          restoreSnapshot({ shifts: prevShifts })
+          toast.info("Perbaikan otomatis dibatalkan.")
+        }
+      }
+    })
+  }
+
+  const handleApplyAIOptimization = () => {
+    sound.playSuccess()
+    const prevShifts = { ...shifts }
+    const optimized = generateOptimizedSchedule(employees, currentBranch)
+    
+    useHRStore.setState({ shifts: optimized, rosterStatus: 'draft' })
+    addAuditLog({
+      user: 'AI Scheduler',
+      action: 'Apply Multi-Constraint Optimal Schedule',
+      detail: 'Menerapkan jadwal seimbang multi-kendala stasiun & biaya tenaga kerja'
+    })
+
+    toast.success("Jadwal Optimal AI Berhasil Diterapkan!", {
+      description: "Penugasan telah mengoptimalkan kompetensi stasiun dan efisiensi biaya tenaga kerja.",
+      action: {
+        label: "Undo",
+        onClick: () => {
+          restoreSnapshot({ shifts: prevShifts })
+          toast.info("Jadwal dikembalikan ke kondisi sebelumnya.")
+        }
+      }
+    })
+    setShowHealthModal(false)
+  }
+
   const handlePublish = () => {
     sound.playSuccess()
     publishRoster()
@@ -318,15 +370,24 @@ export function Calendar() {
               </span>
             </Tooltip>
 
-            <Tooltip content="Indeks Keadilan Jadwal mengukur distribusi beban shift malam agar merata antar seluruh kru (Skor 0-100).">
-              <span className={cn(
-                "px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 shadow-sm cursor-help",
-                fairnessScore >= 80 ? "bg-psy-safe-bg text-psy-safe-text border-psy-safe/40" : 
-                fairnessScore >= 60 ? "bg-psy-warning-bg text-psy-warning-text border-psy-warning/40" : 
-                "bg-psy-danger-bg text-psy-danger-text border-psy-danger/40"
-              )}>
-                <Scale className="w-3.5 h-3.5" /> Indeks Keadilan: {fairnessScore}/100
-              </span>
+            <Tooltip content="Audit kesehatan jadwal: Indeks Keadilan, Kepatuhan Station, Fatigue, dan UU 13/2003">
+              <button 
+                onClick={() => {
+                  sound.playClick()
+                  setShowHealthModal(true)
+                }}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 shadow-sm cursor-pointer transition-all",
+                  healthReport.overallScore >= 80 ? "bg-psy-safe-bg text-psy-safe-text border-psy-safe/40" : 
+                  healthReport.overallScore >= 60 ? "bg-psy-warning-bg text-psy-warning-text border-psy-warning/40" : 
+                  "bg-psy-danger-bg text-psy-danger-text border-psy-danger/40"
+                )}
+              >
+                <Activity className="w-3.5 h-3.5" /> AI Health: {healthReport.overallScore}%
+                {healthReport.violations.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-error animate-ping" />
+                )}
+              </button>
             </Tooltip>
           </div>
           <p className="text-xs text-on-surface-variant mt-1 font-medium">
@@ -349,6 +410,17 @@ export function Calendar() {
           
           {activeRole === 'manager' && (
             <>
+              {healthReport.violations.length > 0 && (
+                <Tooltip content={`Terdapat ${healthReport.violations.length} anomali jadwal. Klik untuk menyelesaikan otomatis dalam 1-klik.`}>
+                  <button 
+                    onClick={handleAutoResolveConflicts}
+                    className="bg-psy-warning-bg text-psy-warning-text hover:bg-psy-warning/20 border border-psy-warning/50 text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer animate-pulse"
+                  >
+                    <Sparkles className="w-4 h-4 text-psy-warning" /> Auto-Fix ({healthReport.violations.length})
+                  </button>
+                </Tooltip>
+              )}
+
               <Tooltip content="Kelola template roster shift mingguan (Simpan & Terapkan template 1-klik)">
                 <button 
                   onClick={() => {
@@ -634,64 +706,81 @@ export function Calendar() {
                         </div>
                       </Tooltip>
                     </td>
-                  {(shifts[emp.id] || Array(7).fill('OFF')).map((shift, i) => {
-                    const unavailInfo = emp.unavailability?.find(u => u.dayIdx === i)
-                    const cellKey = `${emp.id}_${i}`
-                    const isSelected = selectedCells.includes(cellKey)
+                    {(shifts[emp.id] || Array(7).fill('OFF')).map((shift, i) => {
+                      const unavailInfo = emp.unavailability?.find(u => u.dayIdx === i)
+                      const isUnavailConflict = Boolean(unavailInfo && shift !== 'OFF')
+                      const isFatigueConflict = Boolean(shift === 'Pagi' && i > 0 && (shifts[emp.id]?.[i - 1] === 'Closing'))
+                      const cellKey = `${emp.id}_${i}`
+                      const isSelected = selectedCells.includes(cellKey)
 
-                    return (
-                      <td 
-                        key={i} 
-                        className={cn(
-                          "p-3 text-center relative group transition-all", 
-                          activeRole === 'manager' && "cursor-pointer hover:bg-surface-container-high",
-                          isSelected && "bg-accent-primary/20 ring-2 ring-accent-primary ring-inset"
-                        )}
-                        onClick={(e) => {
-                          if (activeRole === 'manager') {
-                            if (e.shiftKey || selectedCells.length > 0) {
-                              sound.playClick()
-                              setSelectedCells(prev => 
-                                prev.includes(cellKey) ? prev.filter(k => k !== cellKey) : [...prev, cellKey]
-                              )
-                            } else {
-                              sound.playClick()
-                              setEditTarget({ empId: emp.id, dayIdx: i, empName: emp.name, currentShift: shift, dayName: DAYS[i] })
+                      return (
+                        <td 
+                          key={i} 
+                          className={cn(
+                            "p-3 text-center relative group transition-all", 
+                            activeRole === 'manager' && "cursor-pointer hover:bg-surface-container-high",
+                            isSelected && "bg-accent-primary/20 ring-2 ring-accent-primary ring-inset",
+                            (isUnavailConflict || isFatigueConflict) && "bg-error/5"
+                          )}
+                          onClick={(e) => {
+                            if (activeRole === 'manager') {
+                              if (e.shiftKey || selectedCells.length > 0) {
+                                sound.playClick()
+                                setSelectedCells(prev => 
+                                  prev.includes(cellKey) ? prev.filter(k => k !== cellKey) : [...prev, cellKey]
+                                )
+                              } else {
+                                sound.playClick()
+                                setEditTarget({ empId: emp.id, dayIdx: i, empName: emp.name, currentShift: shift, dayName: DAYS[i] })
+                              }
                             }
-                          }
-                        }}
-                      >
-                        <Tooltip content={
-                          unavailInfo 
-                            ? `⚠️ Jadwal Kuliah: ${unavailInfo.reason}. ${activeRole === 'manager' ? 'Klik untuk ubah (Shift+Klik untuk multi-select).' : ''}`
-                            : (activeRole === 'manager' ? `Klik untuk ubah (Shift+Klik multi-select): ${SHIFT_TOOLTIPS[shift] || shift}` : SHIFT_TOOLTIPS[shift] || shift)
-                        }>
-                          <div className="space-y-1">
-                            <span className={cn(
-                              "px-2.5 py-1.5 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all block w-full",
-                              shift === 'Pagi' ? "bg-accent-primary/20 text-accent-primary border border-accent-primary/30" :
-                              shift === 'Sore' ? "bg-tertiary/20 text-tertiary border border-tertiary/30" :
-                              shift === 'Closing' ? "bg-semantic-warning/20 text-semantic-warning border border-semantic-warning/30" :
-                              "bg-surface-container text-on-surface-variant border border-transparent",
-                              isSelected && "bg-accent-primary text-white border-transparent"
-                            )}>
-                              {shift}
-                            </span>
-                            {unavailInfo && (
-                              <span className="inline-flex items-center gap-1 text-[9px] font-mono text-psy-warning-text font-bold">
-                                <GraduationCap className="w-2.5 h-2.5" /> Kuliah
+                          }}
+                        >
+                          <Tooltip content={
+                            isUnavailConflict 
+                              ? `⚠️ BENTROK JADWAL: ${emp.name} ditugaskan ${shift}, padahal ada ${unavailInfo?.reason}. Klik untuk ubah.`
+                              : isFatigueConflict
+                              ? `⚠️ FATIGUE RISK: Baru selesai shift Closing (01:00 WIB), langsung masuk Pagi (08:00 WIB). Istirahat < 7 jam.`
+                              : unavailInfo 
+                              ? `Info: Kru izin/kuliah hari ini (${unavailInfo.reason}) - Status OFF sesuai.`
+                              : (activeRole === 'manager' ? `Klik untuk ubah (Shift+Klik multi-select): ${SHIFT_TOOLTIPS[shift] || shift}` : SHIFT_TOOLTIPS[shift] || shift)
+                          }>
+                            <div className="space-y-1">
+                              <span className={cn(
+                                "px-2.5 py-1.5 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all block w-full",
+                                isUnavailConflict ? "bg-error/20 text-error border border-error/50 ring-1 ring-error" :
+                                isFatigueConflict ? "bg-psy-warning-bg text-psy-warning-text border border-psy-warning/50" :
+                                shift === 'Pagi' ? "bg-accent-primary/20 text-accent-primary border border-accent-primary/30" :
+                                shift === 'Sore' ? "bg-tertiary/20 text-tertiary border border-tertiary/30" :
+                                shift === 'Closing' ? "bg-semantic-warning/20 text-semantic-warning border border-semantic-warning/30" :
+                                "bg-surface-container text-on-surface-variant border border-transparent",
+                                isSelected && "bg-accent-primary text-white border-transparent"
+                              )}>
+                                {shift}
                               </span>
-                            )}
-                          </div>
-                        </Tooltip>
-                        {activeRole === 'manager' && !isSelected && (
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            <Edit3 className="w-4 h-4 text-accent-primary" />
-                          </div>
-                        )}
-                      </td>
-                    )
-                  })}
+                              {isUnavailConflict ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-mono text-error font-bold animate-pulse">
+                                  ⚠️ Bentrok
+                                </span>
+                              ) : isFatigueConflict ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-mono text-psy-warning-text font-bold">
+                                  ⚠️ Rest &lt; 7j
+                                </span>
+                              ) : unavailInfo ? (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-mono text-on-surface-variant font-medium">
+                                  <GraduationCap className="w-2.5 h-2.5" /> Kuliah
+                                </span>
+                              ) : null}
+                            </div>
+                          </Tooltip>
+                          {activeRole === 'manager' && !isSelected && (
+                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <Edit3 className="w-4 h-4 text-accent-primary" />
+                            </div>
+                          )}
+                        </td>
+                      )
+                    })}
                 </tr>
               )
             })}
@@ -989,6 +1078,140 @@ export function Calendar() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* AI Roster Health & Optimization Scorecard Modal */}
+      {showHealthModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in"
+            onClick={() => setShowHealthModal(false)}
+          />
+          <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-3xl p-6 md:p-8 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-outline mb-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-accent-primary/10 text-accent-primary">
+                  <Activity className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-on-surface text-lg font-display">AI Roster Health & Optimization Scorecard</h3>
+                  <p className="text-xs text-on-surface-variant">Audit multi-faktor kepatuhan regulasi, kompetensi stasiun, dan beban kelelahan kru</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowHealthModal(false)}
+                className="p-2 hover:bg-surface-container-high rounded-full transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4 text-on-surface-variant" />
+              </button>
+            </div>
+
+            {/* Overall Health Score Hero */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="p-5 rounded-2xl bg-surface-container-low border border-outline flex flex-col items-center justify-center text-center">
+                <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Skor Kesehatan Roster</p>
+                <div className="text-4xl font-bold font-mono text-accent-primary my-1">{healthReport.overallScore}/100</div>
+                <span className={cn(
+                  "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                  healthReport.overallScore >= 80 ? "bg-psy-safe-bg text-psy-safe-text" : "bg-psy-warning-bg text-psy-warning-text"
+                )}>
+                  {healthReport.overallScore >= 80 ? '✓ Sangat Optimal' : '⚠️ Butuh Penyesuaian'}
+                </span>
+              </div>
+
+              <div className="col-span-2 grid grid-cols-2 gap-3">
+                <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline">
+                  <p className="text-[10px] text-on-surface-variant font-bold uppercase">Indeks Keadilan</p>
+                  <p className="text-lg font-bold font-mono text-on-surface mt-0.5">{healthReport.fairnessScore}%</p>
+                  <p className="text-[10px] text-on-surface-variant mt-0.5">Keseimbangan shift malam & akhir pekan</p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline">
+                  <p className="text-[10px] text-on-surface-variant font-bold uppercase">Cakupan Stasiun</p>
+                  <p className="text-lg font-bold font-mono text-on-surface mt-0.5">{healthReport.stationCoverageScore}%</p>
+                  <p className="text-[10px] text-on-surface-variant mt-0.5">Kesiapan Barista Lead & Kasir</p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline">
+                  <p className="text-[10px] text-on-surface-variant font-bold uppercase">Pencegahan Fatigue</p>
+                  <p className="text-lg font-bold font-mono text-on-surface mt-0.5">{healthReport.fatigueSafetyScore}%</p>
+                  <p className="text-[10px] text-on-surface-variant mt-0.5">Jeda istirahat minimum 11 jam</p>
+                </div>
+                <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline">
+                  <p className="text-[10px] text-on-surface-variant font-bold uppercase">Labor Cost Ratio</p>
+                  <p className="text-lg font-bold font-mono text-on-surface mt-0.5">{healthReport.laborCostRatio}%</p>
+                  <p className="text-[10px] text-on-surface-variant mt-0.5">Target &lt;25% Omzet Mingguan</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Violations & Recommendations List */}
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-on-surface uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-psy-warning" />
+                  Temuan Audit Jadwal ({healthReport.violations.length} Isu)
+                </h4>
+                {healthReport.violations.length > 0 && (
+                  <button
+                    onClick={handleAutoResolveConflicts}
+                    className="text-xs text-accent-primary font-bold hover:underline cursor-pointer flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" /> Selesaikan Semua Otomatis
+                  </button>
+                )}
+              </div>
+
+              {healthReport.violations.length === 0 ? (
+                <div className="p-6 rounded-2xl bg-psy-safe-bg/30 border border-psy-safe/30 text-center space-y-1">
+                  <ShieldCheck className="w-8 h-8 text-psy-safe mx-auto" />
+                  <p className="font-bold text-xs text-psy-safe-text">Tidak Ditemukan Pelanggaran Jadwal</p>
+                  <p className="text-[10px] text-on-surface-variant">Roster sepenuhnya patuh terhadap ketersediaan staf, regulasi istirahat, dan stasiun operasional.</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                  {healthReport.violations.map(violation => (
+                    <div key={violation.id} className="p-3.5 rounded-xl bg-surface-container-low border border-outline flex items-start justify-between gap-3 text-xs">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "px-1.5 py-0.2 rounded font-mono text-[9px] font-bold uppercase",
+                            violation.type === 'fatigue_rest' ? "bg-error/10 text-error" :
+                            violation.type === 'unavailability' ? "bg-psy-warning-bg text-psy-warning-text" :
+                            "bg-accent-primary/10 text-accent-primary"
+                          )}>
+                            {violation.type === 'fatigue_rest' ? 'Fatigue Alert' : violation.type === 'unavailability' ? 'Bentrok Izin' : 'Understaffed'}
+                          </span>
+                          <span className="font-bold text-on-surface">{violation.employeeName} • Hari {violation.dayName}</span>
+                        </div>
+                        <p className="text-on-surface-variant text-[11px]">{violation.description}</p>
+                        <p className="text-accent-primary text-[10px] font-medium flex items-center gap-1">
+                          <ArrowRight className="w-3 h-3" /> Rekomendasi: {violation.suggestedFix}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-4 border-t border-outline">
+              <button
+                type="button"
+                onClick={() => setShowHealthModal(false)}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-surface-container-high border border-outline text-xs font-bold text-on-surface hover:bg-outline/50 transition-all cursor-pointer"
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyAIOptimization}
+                className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-gradient-to-r from-accent-primary to-primary text-white font-bold text-xs hover:shadow-[0_0_20px_rgba(27,95,174,0.4)] transition-all cursor-pointer flex items-center justify-center gap-2 font-display"
+              >
+                <Sparkles className="w-4 h-4" /> Terapkan Jadwal Optimal AI Multi-Constraint
+              </button>
+            </div>
           </div>
         </div>
       )}

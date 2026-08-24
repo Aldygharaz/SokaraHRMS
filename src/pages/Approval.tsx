@@ -1,6 +1,6 @@
 import { useHRStore } from '@/store/useHRStore'
 import { TiltCard } from '@/components/motion/TiltCard'
-import { CheckCircle2, XCircle, User, Clock, AlertTriangle, X, Plus, Sparkles, Send, Store, UserCheck, Layers } from 'lucide-react'
+import { CheckCircle2, XCircle, User, Clock, AlertTriangle, X, Plus, Sparkles, Send, Store, UserCheck, Layers, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { sound } from '@/lib/sound'
@@ -11,9 +11,13 @@ import { Tooltip } from '@/components/ui/Tooltip'
 export function Approval() {
   const swapRequests = useHRStore(state => state.swapRequests)
   const openShifts = useHRStore(state => state.openShifts)
+  const roamingRequests = useHRStore(state => state.roamingRequests || [])
+  const postRoamingRequest = useHRStore(state => state.postRoamingRequest)
+  const claimRoamingRequest = useHRStore(state => state.claimRoamingRequest)
   const employees = useHRStore(state => state.employees)
   const activeRole = useHRStore(state => state.activeRole)
   const activeEmployeeId = useHRStore(state => state.activeEmployeeId)
+  const activeBranch = useHRStore(state => state.activeBranch)
   const updateSwapRequestStatus = useHRStore(state => state.updateSwapRequestStatus)
   const restoreSnapshot = useHRStore(state => state.restoreSnapshot)
   const addSwapRequest = useHRStore(state => state.addSwapRequest)
@@ -21,10 +25,11 @@ export function Approval() {
   const claimOpenShift = useHRStore(state => state.claimOpenShift)
   const addAuditLog = useHRStore(state => state.addAuditLog)
 
-  const [activeTab, setActiveTab] = useState<'requests' | 'marketplace'>('requests')
+  const [activeTab, setActiveTab] = useState<'requests' | 'marketplace' | 'roaming'>('requests')
   const [conflictModalId, setConflictModalId] = useState<number | null>(null)
   const [showSubmitModal, setShowSubmitModal] = useState(false)
   const [showPostOpenModal, setShowPostOpenModal] = useState(false)
+  const [showPostRoamingModal, setShowPostRoamingModal] = useState(false)
 
   // Submit Form State
   const [targetSlot, setTargetSlot] = useState('Sabtu (29 Agu) - Shift Pagi (08:00 - 17:00)')
@@ -36,6 +41,13 @@ export function Approval() {
   const [openSlotDay, setOpenSlotDay] = useState(4) // Friday
   const [openShiftType, setOpenShiftType] = useState('Sore')
   const [openReason, setOpenReason] = useState('')
+
+  // Roaming Form State
+  const [roamingTargetBranch, setRoamingTargetBranch] = useState('Sudirman')
+  const [roamingRole, setRoamingRole] = useState('Barista')
+  const [roamingDayIdx, setRoamingDayIdx] = useState(4)
+  const [roamingShiftType, setRoamingShiftType] = useState('Pagi')
+  const [roamingReason, setRoamingReason] = useState('')
 
   const activeEmployee = employees.find(e => e.id === activeEmployeeId)
   const displayRequests = activeRole === 'manager' 
@@ -85,6 +97,39 @@ export function Approval() {
     claimOpenShift(shiftId, activeEmployeeId)
     toast.success(`Berhasil mengklaim ${slot}!`, {
       description: "Jadwal kalender Anda telah otomatis diperbarui."
+    })
+  }
+
+  const handlePostRoaming = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!roamingReason.trim()) return
+    sound.playSuccess()
+    postRoamingRequest({
+      targetBranch: roamingTargetBranch,
+      sourceBranch: activeBranch,
+      role: roamingRole,
+      dayIdx: roamingDayIdx,
+      shiftType: roamingShiftType,
+      travelStipend: 50000,
+      reason: roamingReason.trim(),
+      status: 'open'
+    })
+    toast.success(`Permohonan bantuan kru roaming untuk cabang ${roamingTargetBranch} berhasil dibroadcast!`)
+    setShowPostRoamingModal(false)
+    setRoamingReason('')
+  }
+
+  const handleClaimRoaming = (roamingId: number, targetBranch: string, shift: string) => {
+    sound.playSuccess()
+    const activeEmp = employees.find(e => e.id === activeEmployeeId)
+    claimRoamingRequest(roamingId, activeEmp?.name || 'Staff')
+    addAuditLog({
+      user: activeEmp?.name || 'Staff',
+      action: 'Claim Roaming Shift',
+      detail: `Mengklaim shift roaming ${shift} di cabang ${targetBranch} (+Rp 50.000 Uang Saku)`
+    })
+    toast.success(`Berhasil Mengambil Shift Roaming di Cabang ${targetBranch}!`, {
+      description: "Insentif uang saku transport Rp 50.000 telah ditambahkan ke payroll Anda."
     })
   }
 
@@ -160,7 +205,7 @@ export function Approval() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-outline pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-outline pb-2">
         <button
           onClick={() => {
             sound.playClick()
@@ -188,6 +233,20 @@ export function Approval() {
           )}
         >
           <Store className="w-4 h-4" /> Bursa Shift Terbuka ({openShifts.filter(s => s.status === 'open').length} Tersedia)
+        </button>
+        <button
+          onClick={() => {
+            sound.playClick()
+            setActiveTab('roaming')
+          }}
+          className={cn(
+            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+            activeTab === 'roaming' 
+              ? "bg-accent-primary text-white shadow-sm" 
+              : "text-on-surface-variant hover:bg-surface-container"
+          )}
+        >
+          <Building2 className="w-4 h-4" /> Bursa Kru Roaming Antar-Cabang ({roamingRequests.filter(r => r.status === 'open').length})
         </button>
       </div>
 
@@ -403,6 +462,85 @@ export function Approval() {
               </div>
             </TiltCard>
           ))}
+        </div>
+      )}
+
+      {/* Tab Content: Roaming Cross-Branch Pool */}
+      {activeTab === 'roaming' && (
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-surface-container-low border border-outline">
+            <div>
+              <h3 className="font-bold text-sm text-on-surface flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-accent-primary" />
+                Pool Bantuan Kru Antar-Cabang (Cross-Branch Roaming)
+              </h3>
+              <p className="text-xs text-on-surface-variant">Staf yang mengambil shift di cabang lain berhak mendapatkan uang saku transport tambahan Rp 50.000 / shift</p>
+            </div>
+
+            {activeRole === 'manager' && (
+              <button
+                onClick={() => { sound.playClick(); setShowPostRoamingModal(true) }}
+                className="px-4 py-2 rounded-xl bg-accent-primary text-white font-bold text-xs flex items-center gap-1.5 hover:bg-accent-primary/90 transition-all cursor-pointer font-display shrink-0"
+              >
+                <Plus className="w-4 h-4" /> Minta Bantuan Kru
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {roamingRequests.map(roaming => {
+              const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+              const isClaimed = roaming.status === 'claimed'
+
+              return (
+                <TiltCard key={roaming.id} className="glass-panel p-5 rounded-3xl border border-outline space-y-4 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-xl bg-accent-primary/10 text-accent-primary font-bold text-xs font-mono">
+                          Cabang {roaming.targetBranch}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-[10px] font-bold">
+                          {roaming.role}
+                        </span>
+                      </div>
+                      <span className={cn(
+                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase",
+                        isClaimed ? "bg-psy-safe-bg text-psy-safe-text" : "bg-psy-warning-bg text-psy-warning-text"
+                      )}>
+                        {isClaimed ? '✓ Terisi' : 'Tersedia'}
+                      </span>
+                    </div>
+
+                    <h4 className="font-bold text-sm text-on-surface mt-2 font-display">
+                      Hari {dayNames[roaming.dayIdx]} • Shift {roaming.shiftType}
+                    </h4>
+                    <p className="text-xs text-on-surface-variant mt-1">{roaming.reason}</p>
+                  </div>
+
+                  <div className="pt-3 border-t border-outline flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-on-surface-variant uppercase">Uang Saku:</span>
+                      <span className="font-bold font-mono text-xs text-psy-safe-text">+Rp {roaming.travelStipend.toLocaleString('id-ID')}</span>
+                    </div>
+
+                    {!isClaimed ? (
+                      <button
+                        onClick={() => handleClaimRoaming(roaming.id, roaming.targetBranch, `Shift ${roaming.shiftType}`)}
+                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-accent-primary to-primary text-white font-bold text-xs flex items-center gap-1.5 hover:shadow-md transition-all cursor-pointer font-display"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" /> Ambil Shift (+Rp 50k)
+                      </button>
+                    ) : (
+                      <span className="text-xs font-bold text-on-surface-variant font-mono">
+                        Diambil oleh: {roaming.claimedBy}
+                      </span>
+                    )}
+                  </div>
+                </TiltCard>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -661,6 +799,117 @@ export function Approval() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Minta Bantuan Kru Roaming */}
+      {showPostRoamingModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowPostRoamingModal(false)} />
+          <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-2xl bg-accent-primary/10 text-accent-primary">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold font-display text-lg text-on-surface">Minta Bantuan Kru Roaming</h3>
+                  <p className="text-xs text-on-surface-variant">Broadcast permohonan staf bantuan ke cabang lain</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPostRoamingModal(false)} className="p-2 hover:bg-surface-container-high rounded-full cursor-pointer">
+                <X className="w-4 h-4 text-on-surface-variant" />
+              </button>
+            </div>
+
+            <form onSubmit={handlePostRoaming} className="space-y-4 text-xs">
+              <div>
+                <label className="font-bold text-on-surface-variant block mb-1.5">Cabang Pemohon (Target Penugasan)</label>
+                <select 
+                  value={roamingTargetBranch}
+                  onChange={(e) => setRoamingTargetBranch(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline rounded-xl p-3 text-on-surface font-medium outline-none focus:border-accent-primary"
+                >
+                  <option value="Sudirman">Sudirman (SCBD)</option>
+                  <option value="Kemang">Kemang</option>
+                  <option value="Senopati (HQ)">Senopati (HQ)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="font-bold text-on-surface-variant block mb-1.5">Peran / Keahlian</label>
+                  <select 
+                    value={roamingRole}
+                    onChange={(e) => setRoamingRole(e.target.value)}
+                    className="w-full bg-surface-container-low border border-outline rounded-xl p-3 text-on-surface font-medium outline-none focus:border-accent-primary"
+                  >
+                    <option value="Barista">Barista</option>
+                    <option value="Kasir">Kasir</option>
+                    <option value="Supervisor">Supervisor</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="font-bold text-on-surface-variant block mb-1.5">Hari Penugasan</label>
+                  <select 
+                    value={roamingDayIdx}
+                    onChange={(e) => setRoamingDayIdx(Number(e.target.value))}
+                    className="w-full bg-surface-container-low border border-outline rounded-xl p-3 text-on-surface font-medium outline-none focus:border-accent-primary"
+                  >
+                    <option value={4}>Jumat (24 Agu)</option>
+                    <option value={5}>Sabtu (25 Agu)</option>
+                    <option value={6}>Minggu (26 Agu)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="font-bold text-on-surface-variant block mb-1.5">Jenis Shift</label>
+                <select 
+                  value={roamingShiftType}
+                  onChange={(e) => setRoamingShiftType(e.target.value)}
+                  className="w-full bg-surface-container-low border border-outline rounded-xl p-3 text-on-surface font-medium outline-none focus:border-accent-primary"
+                >
+                  <option value="Pagi">Pagi (08:00 - 17:00)</option>
+                  <option value="Sore">Sore (14:00 - 23:00)</option>
+                  <option value="Closing">Closing (16:00 - 01:00)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-on-surface-variant block mb-1.5">Alasan Permohonan</label>
+                <textarea 
+                  value={roamingReason}
+                  onChange={(e) => setRoamingReason(e.target.value)}
+                  placeholder="Contoh: Lonjakan pelanggan festival SCBD, kekurangan 2 staf barista..."
+                  rows={3}
+                  className="w-full bg-surface-container-low border border-outline rounded-xl p-3 text-on-surface outline-none focus:border-accent-primary resize-none font-medium"
+                />
+              </div>
+
+              <div className="p-3 bg-psy-safe-bg/30 rounded-xl border border-psy-safe/30 text-psy-safe-text text-[11px] font-medium flex items-center justify-between">
+                <span>Insentif Uang Saku Kru:</span>
+                <span className="font-bold font-mono text-xs">+Rp 50.000 (Otomatis Masuk Payroll)</span>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowPostRoamingModal(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-outline hover:bg-surface-container text-on-surface-variant font-bold cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit"
+                  disabled={!roamingReason.trim()}
+                  className="flex-1 py-2.5 rounded-xl bg-accent-primary text-white font-bold disabled:opacity-50 hover:shadow-lg transition-all cursor-pointer font-display"
+                >
+                  Broadcast Permohonan
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

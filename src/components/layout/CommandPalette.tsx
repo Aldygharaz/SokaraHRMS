@@ -143,6 +143,32 @@ export function CommandPalette() {
         action: () => { navigate('/kudos'); setIsOpen(false) }
       },
 
+      // Slide-over Triggers
+      {
+        id: 'act-kudos',
+        title: 'Kirim Apresiasi Baru (Slide-over)',
+        category: 'Aksi Cepat',
+        icon: Heart,
+        shortcut: 'K',
+        action: () => {
+          sound.playClick()
+          setIsOpen(false)
+          window.dispatchEvent(new CustomEvent('open-slideover', { detail: { type: 'kudos' } }))
+        }
+      },
+      {
+        id: 'act-export',
+        title: 'Export Data Payroll Bank (Slide-over)',
+        category: 'Aksi Cepat',
+        icon: DollarSign,
+        shortcut: 'E',
+        action: () => {
+          sound.playClick()
+          setIsOpen(false)
+          window.dispatchEvent(new CustomEvent('open-slideover', { detail: { type: 'export' } }))
+        }
+      },
+
       // Quick Actions
       {
         id: 'act-autofill',

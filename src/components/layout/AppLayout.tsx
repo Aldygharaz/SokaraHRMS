@@ -7,6 +7,7 @@ import { CommandPalette } from './CommandPalette'
 import { PlaygroundPanel } from '../demo/PlaygroundPanel'
 import { WelcomeBanner } from './WelcomeBanner'
 import { ShortcutModal } from './ShortcutModal'
+import { GlobalActionDrawers } from '../ui/GlobalActionDrawers'
 import { useHRStore } from '@/store/useHRStore'
 import { cn } from '@/lib/utils'
 import { useEffect } from 'react'
@@ -51,6 +52,7 @@ export function AppLayout() {
       <PlaygroundPanel />
       <WelcomeBanner />
       <ShortcutModal />
+      <GlobalActionDrawers />
     </div>
   )
 }

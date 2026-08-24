@@ -128,6 +128,33 @@ export interface AttestationRecord {
   timestamp: string
 }
 
+export interface RoamingShiftRequest {
+  id: number
+  targetBranch: string
+  sourceBranch: string
+  role: string
+  dayIdx: number
+  shiftType: string
+  travelStipend: number
+  reason: string
+  status: 'open' | 'claimed'
+  claimedBy?: string
+}
+
+export interface TimesheetApproval {
+  id: number
+  employeeId: number
+  employeeName: string
+  date: string
+  scheduledShift: string
+  actualClockIn: string
+  actualClockOut: string
+  varianceMinutes: number
+  approved: boolean
+  approvedBy?: string
+  approvedAt?: string
+}
+
 interface HRState {
   activeTab: string
   activeRole: Role
@@ -144,6 +171,8 @@ interface HRState {
   shifts: Record<number, string[]>
   shiftTemplates: Record<string, Record<number, string[]>>
   attestationRecords: AttestationRecord[]
+  roamingRequests: RoamingShiftRequest[]
+  timesheetApprovals: TimesheetApproval[]
   swapRequests: SwapRequest[]
   auditLogs: AuditLog[]
   okrGoals: OkrGoal[]
@@ -172,6 +201,10 @@ interface HRState {
   addHandoverNote: (note: string, author: string, shift: string, priority?: 'normal' | 'urgent') => void
   postOpenShift: (slot: string, dayIdx: number, shiftType: string, reason: string) => void
   claimOpenShift: (shiftId: number, claimantId: number) => void
+  postRoamingRequest: (req: Omit<RoamingShiftRequest, 'id'>) => void
+  claimRoamingRequest: (id: number, claimantName: string) => void
+  approveTimesheet: (id: number, managerName: string) => void
+  approveAllTimesheets: (managerName: string) => void
   setEmployeeMood: (employeeId: number, mood: 'ready' | 'good' | 'tired' | 'stressed', label: string) => void
   updateSwapRequestStatus: (id: number, status: string) => void
   autoFillShifts: () => void
@@ -265,6 +298,97 @@ const defaultAttestationRecords: AttestationRecord[] = [
   }
 ]
 
+const defaultRoamingRequests: RoamingShiftRequest[] = [
+  {
+    id: 201,
+    targetBranch: 'Sudirman',
+    sourceBranch: 'Senopati (HQ)',
+    role: 'Barista',
+    dayIdx: 4, // Jumat
+    shiftType: 'Pagi',
+    travelStipend: 50000,
+    reason: 'Lonjakan antrean korporat SCBD (+2 Kru Pagi)',
+    status: 'open'
+  },
+  {
+    id: 202,
+    targetBranch: 'Kemang',
+    sourceBranch: 'Senopati (HQ)',
+    role: 'Kasir',
+    dayIdx: 5, // Sabtu
+    shiftType: 'Closing',
+    travelStipend: 50000,
+    reason: 'Kemang Art Bazaar Festival (+1 Kasir Malam)',
+    status: 'open'
+  }
+]
+
+const defaultTimesheetApprovals: TimesheetApproval[] = [
+  {
+    id: 1,
+    employeeId: 1,
+    employeeName: 'Dimas Prasetyo',
+    date: 'Hari Ini',
+    scheduledShift: 'Pagi (08:00 - 17:00)',
+    actualClockIn: '07:42 WIB',
+    actualClockOut: '--:--',
+    varianceMinutes: -18,
+    approved: true,
+    approvedBy: 'Aldy (Manager)',
+    approvedAt: '08:00 WIB'
+  },
+  {
+    id: 2,
+    employeeId: 2,
+    employeeName: 'Siti Rahma',
+    date: 'Hari Ini',
+    scheduledShift: 'Pagi (08:00 - 17:00)',
+    actualClockIn: '07:55 WIB',
+    actualClockOut: '--:--',
+    varianceMinutes: -5,
+    approved: true,
+    approvedBy: 'Aldy (Manager)',
+    approvedAt: '08:00 WIB'
+  },
+  {
+    id: 3,
+    employeeId: 3,
+    employeeName: 'Budi Santoso',
+    date: 'Hari Ini',
+    scheduledShift: 'Pagi (08:00 - 17:00)',
+    actualClockIn: '08:14 WIB',
+    actualClockOut: '--:--',
+    varianceMinutes: 14,
+    approved: false
+  },
+  {
+    id: 4,
+    employeeId: 4,
+    employeeName: 'Rian Kurniawan',
+    date: 'Hari Ini',
+    scheduledShift: 'Pagi (08:00 - 17:00)',
+    actualClockIn: '07:48 WIB',
+    actualClockOut: '--:--',
+    varianceMinutes: -12,
+    approved: true,
+    approvedBy: 'Aldy (Manager)',
+    approvedAt: '08:00 WIB'
+  },
+  {
+    id: 5,
+    employeeId: 5,
+    employeeName: 'Dewi Lestari',
+    date: 'Hari Ini',
+    scheduledShift: 'Pagi (08:00 - 17:00)',
+    actualClockIn: '07:58 WIB',
+    actualClockOut: '--:--',
+    varianceMinutes: -2,
+    approved: true,
+    approvedBy: 'Aldy (Manager)',
+    approvedAt: '08:00 WIB'
+  }
+]
+
 export const useHRStore = create<HRState>()(
   persist(
     (set) => ({
@@ -286,6 +410,8 @@ export const useHRStore = create<HRState>()(
       sopTasks: defaultSopTasks,
       shiftTemplates: defaultShiftTemplates,
       attestationRecords: defaultAttestationRecords,
+      roamingRequests: defaultRoamingRequests,
+      timesheetApprovals: defaultTimesheetApprovals,
       employeeMoods: {
         1: { mood: 'ready', label: 'Siap Tempur', timestamp: '07:42 WIB' },
         2: { mood: 'good', label: 'Bugar & Fokus', timestamp: '07:55 WIB' },
@@ -620,6 +746,26 @@ export const useHRStore = create<HRState>()(
         delete next[name]
         return { shiftTemplates: next }
       }),
+      postRoamingRequest: (req) => set((state) => ({
+        roamingRequests: [{ ...req, id: Date.now() }, ...state.roamingRequests]
+      })),
+      claimRoamingRequest: (id, claimantName) => set((state) => ({
+        roamingRequests: state.roamingRequests.map(r => r.id === id ? { ...r, status: 'claimed', claimedBy: claimantName } : r)
+      })),
+      approveTimesheet: (id, managerName) => set((state) => {
+        const now = new Date()
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`
+        return {
+          timesheetApprovals: state.timesheetApprovals.map(t => t.id === id ? { ...t, approved: true, approvedBy: managerName, approvedAt: timeStr } : t)
+        }
+      }),
+      approveAllTimesheets: (managerName) => set((state) => {
+        const now = new Date()
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`
+        return {
+          timesheetApprovals: state.timesheetApprovals.map(t => ({ ...t, approved: true, approvedBy: managerName, approvedAt: timeStr }))
+        }
+      }),
       addAttestationRecord: (record) => set((state) => {
         const now = new Date()
         const timestamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')} WIB`
@@ -672,6 +818,8 @@ export const useHRStore = create<HRState>()(
         sopTasks: defaultSopTasks,
         shiftTemplates: defaultShiftTemplates,
         attestationRecords: defaultAttestationRecords,
+        roamingRequests: defaultRoamingRequests,
+        timesheetApprovals: defaultTimesheetApprovals,
         employeeMoods: {
           1: { mood: 'ready', label: 'Siap Tempur', timestamp: '07:42 WIB' },
           2: { mood: 'good', label: 'Bugar & Fokus', timestamp: '07:55 WIB' },
@@ -712,7 +860,7 @@ export const useHRStore = create<HRState>()(
     }),
     {
       name: 'sokara_hr_store',
-      version: 10,
+      version: 11,
     }
   )
 )

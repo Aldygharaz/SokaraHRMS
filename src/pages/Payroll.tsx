@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useHRStore } from '@/store/useHRStore'
 import { TiltCard } from '@/components/motion/TiltCard'
-import { Landmark, Calculator, Settings, Edit2, X, Printer, FileText, Sliders, CheckCircle2, Sparkles, HelpCircle, User, ArrowRight, Copy, Download, ShieldCheck, Scale, Building2 } from 'lucide-react'
+import { Landmark, Calculator, Settings, Edit2, X, Printer, FileText, Sliders, CheckCircle2, Sparkles, HelpCircle, User, ArrowRight, Copy, Download, ShieldCheck, Scale, Building2, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { sound } from '@/lib/sound'
-import { cn, formatThousandDots, parseThousandDots } from '@/lib/utils'
+import { cn, formatThousandDots, parseThousandDots, calculateTieredOvertimePay } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Tooltip } from '@/components/ui/Tooltip'
+import { SlideOver } from '@/components/ui/SlideOver'
 import { BRANCH_PROFILES } from '@/lib/branches'
+import { exportBankPayrollBatch, type BankType } from '@/lib/bankExport'
 
 export function Payroll() {
   const employees = useHRStore(state => state.employees)
@@ -25,6 +27,8 @@ export function Payroll() {
 
   const [activeTab, setActiveTab] = useState<'roster' | 'simulator' | 'compliance'>('roster')
   const [showTerModal, setShowTerModal] = useState(false)
+  const [showBankExportModal, setShowBankExportModal] = useState(false)
+  const [selectedBankType, setSelectedBankType] = useState<BankType>('BCA')
   const [terForm, setTerForm] = useState(terRates)
   const [showWizardModal, setShowWizardModal] = useState(false)
   const [wizardStep, setWizardStep] = useState(1)
@@ -51,7 +55,8 @@ export function Payroll() {
   const [simBonus, setSimBonus] = useState(500000)
   const [simKat, setSimKat] = useState(activeEmployee ? activeEmployee.kat : 'B')
 
-  const simOvertimePay = simOvertimeHours * 28400
+  const simTieredOT = calculateTieredOvertimePay(28400, simOvertimeHours)
+  const simOvertimePay = simTieredOT.totalPay
   const simNightPay = simNightShifts * 50000
   const simGross = simBase + simOvertimePay + simNightPay + simBonus
   const simTerPercentage = terRates[simKat] || 1.5
@@ -101,46 +106,22 @@ export function Payroll() {
     toast.success(`Data gaji ${activeEmployee.name} dimuat ke simulator.`)
   }
 
-  const handleExportBankCsv = () => {
+  const handleExecuteBankExport = (type: BankType) => {
     sound.playSuccess()
-    const headers = ['No', 'Nama Karyawan', 'Jabatan', 'PTKP', 'Kategori TER', 'Gaji Pokok (Rp)', 'Upah Lembur (Rp)', 'Insentif Malam (Rp)', 'Gaji Bruto (Rp)', 'Tarif PPh 21 TER (%)', 'Potongan Pajak (Rp)', 'Take Home Pay Net (Rp)', 'Nomor Rekening', 'Bank']
-    
-    const rows = employees.map((emp, idx) => {
-      const overtimePay = emp.overtimeHours * emp.rate * 4
+    const netMap: Record<number, number> = {}
+    employees.forEach(emp => {
+      const tieredOT = calculateTieredOvertimePay(emp.rate, emp.overtimeHours)
+      const overtimePay = tieredOT.totalPay * 4
       const nightPay = emp.nightShiftsMonth * 50000
       const gross = emp.baseSalary + overtimePay + nightPay
       const terPercentage = terRates[emp.kat] || 0.5
       const tax = gross * (terPercentage / 100)
-      const net = gross - tax
-
-      return [
-        idx + 1,
-        `"${emp.name}"`,
-        `"${emp.role}"`,
-        `"${emp.ptkp}"`,
-        `"Kategori ${emp.kat}"`,
-        emp.baseSalary,
-        overtimePay,
-        nightPay,
-        gross,
-        terPercentage,
-        Math.round(tax),
-        Math.round(net),
-        `"8830${emp.id}91823"`,
-        `"BCA / Mandiri Corporate"`
-      ].join(',')
+      netMap[emp.id] = gross - tax
     })
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows].join('\n')
-    const encodedUri = encodeURI(csvContent)
-    const link = document.createElement('a')
-    link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `Sokara_Payroll_Batch_${new Date().toISOString().split('T')[0]}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-
-    toast.success("Berkas CSV Payroll Perbankan berhasil diekspor!")
+    exportBankPayrollBatch(employees, netMap, type, activeBranch)
+    toast.success(`Berkas batch transfer format ${type} berhasil diunduh!`)
+    setShowBankExportModal(false)
   }
 
   return (
@@ -168,9 +149,12 @@ export function Payroll() {
         <div className="flex flex-wrap items-center gap-2.5">
           {activeRole === 'manager' && (
             <>
-              <Tooltip content="Ekspor rekapitulasi penggajian ke format CSV standar perbankan (BCA/Mandiri/BRI)">
+              <Tooltip content="Ekspor rekapitulasi penggajian ke format CSV standar perbankan resmi (BCA Corporate, Mandiri MCM, BRI)">
                 <button 
-                  onClick={handleExportBankCsv}
+                  onClick={() => {
+                    sound.playClick()
+                    setShowBankExportModal(true)
+                  }}
                   className="bg-surface-container-high text-on-surface text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all hover:bg-surface-container border border-outline cursor-pointer"
                 >
                   <Download className="w-4 h-4 text-accent-primary" /> Export CSV Bank
@@ -781,6 +765,7 @@ export function Payroll() {
                     sound.playSuccess()
                     setWizardStep(3)
                     toast.success("Slip gaji elektronik berhasil dibuat untuk semua karyawan.")
+                    import('@/lib/confetti').then(({ fireConfetti }) => fireConfetti())
                   }}
                   className="w-full py-3 rounded-xl bg-accent-primary text-white font-bold text-xs flex items-center justify-center gap-2 hover:shadow-lg transition-all cursor-pointer font-display"
                 >
@@ -910,132 +895,214 @@ export function Payroll() {
       )}
 
       {/* Modal Konfigurasi TER */}
-      {showTerModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowTerModal(false)}></div>
-          <div className="relative bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold font-display text-lg">Konfigurasi Tarif Pajak TER (PPh 21)</h3>
-              <button onClick={() => setShowTerModal(false)} className="p-2 hover:bg-surface-container-high rounded-full cursor-pointer"><X className="w-4 h-4"/></button>
-            </div>
-            
-            <div className="space-y-4">
-              {['A', 'B', 'C'].map(kat => (
-                <div key={kat} className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-on-surface-variant">Kategori {kat} (Tarif %)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    value={terForm[kat] || 0}
-                    onChange={(e) => setTerForm({ ...terForm, [kat]: parseFloat(e.target.value) || 0 })}
-                    className="p-3 rounded-xl bg-surface-container border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary"
-                  />
-                </div>
-              ))}
-            </div>
+      <SlideOver
+        isOpen={showTerModal}
+        onClose={() => setShowTerModal(false)}
+        title="Konfigurasi Tarif Pajak TER (PPh 21)"
+        width="max-w-md"
+      >
+        <div className="space-y-6">
+          <p className="text-xs text-on-surface-variant">Konfigurasi persentase pemotongan pajak berdasarkan Kategori PTKP sesuai PMK 168/2023.</p>
+          <div className="space-y-4">
+            {['A', 'B', 'C'].map(kat => (
+              <div key={kat} className="flex flex-col gap-1.5">
+                <label className="text-xs font-bold text-on-surface-variant">Kategori {kat} (Tarif %)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  value={terForm[kat] || 0}
+                  onChange={(e) => setTerForm({ ...terForm, [kat]: parseFloat(e.target.value) || 0 })}
+                  className="p-3 rounded-xl bg-surface-container-lowest border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+                />
+              </div>
+            ))}
+          </div>
 
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setShowTerModal(false)} className="px-4 py-2.5 rounded-xl border border-outline hover:bg-surface-container text-xs font-bold cursor-pointer">Batal</button>
-              <button onClick={handleSaveTer} className="px-5 py-2.5 rounded-xl bg-accent-primary text-white text-xs font-bold hover:shadow-lg transition-all cursor-pointer font-display">Simpan Tarif</button>
-            </div>
+          <div className="flex flex-col gap-2 pt-6 mt-4 border-t border-outline">
+            <button 
+              onClick={handleSaveTer} 
+              className="w-full py-3.5 rounded-xl bg-accent-primary text-white text-xs font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all cursor-pointer font-display shadow-md"
+            >
+              <Settings className="w-4 h-4" /> Simpan Tarif TER
+            </button>
+            <button 
+              onClick={() => setShowTerModal(false)} 
+              className="w-full py-3.5 rounded-xl border border-outline hover:bg-surface-container text-xs font-bold cursor-pointer transition-colors"
+            >
+              Batal & Tutup
+            </button>
           </div>
         </div>
-      )}
+      </SlideOver>
 
-      {/* Modal Edit Gaji Karyawan */}
-      {editEmpId && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setEditEmpId(null)}></div>
-          <div className="relative bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold font-display text-lg">Edit Struktur Gaji Karyawan</h3>
-              <button onClick={() => setEditEmpId(null)} className="p-2 hover:bg-surface-container-high rounded-full cursor-pointer"><X className="w-4 h-4"/></button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-on-surface-variant">Gaji Pokok (Rp)</label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3 text-xs font-mono font-bold text-on-surface-variant pointer-events-none">Rp</span>
-                  <input 
-                    type="text" 
-                    inputMode="numeric"
-                    value={formatThousandDots(empForm.baseSalary)}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setEmpForm({ ...empForm, baseSalary: parseThousandDots(e.target.value) })}
-                    placeholder="Contoh: 5.000.000"
-                    className="w-full pl-9 p-3 rounded-xl bg-surface-container border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-on-surface-variant">Status PTKP</label>
-                  <input 
-                    type="text" 
-                    value={empForm.ptkp}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setEmpForm({ ...empForm, ptkp: e.target.value })}
-                    className="p-3 rounded-xl bg-surface-container border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary"
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-bold text-on-surface-variant">Kategori TER (A/B/C)</label>
-                  <select 
-                    value={empForm.kat}
-                    onChange={(e) => setEmpForm({ ...empForm, kat: e.target.value })}
-                    className="p-3 rounded-xl bg-surface-container border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary"
-                  >
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold text-on-surface-variant">Upah Lembur / Jam (Rp)</label>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3 text-xs font-mono font-bold text-on-surface-variant pointer-events-none">Rp</span>
-                  <input 
-                    type="text" 
-                    inputMode="numeric"
-                    value={formatThousandDots(empForm.rate)}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setEmpForm({ ...empForm, rate: parseThousandDots(e.target.value) })}
-                    placeholder="Contoh: 28.400"
-                    className="w-full pl-9 p-3 rounded-xl bg-surface-container border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary"
-                  />
-                </div>
-              </div>
-
-              {/* Live Preview Simulator Gaji Bersih */}
-              <div className="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline space-y-2 text-xs">
-                <div className="flex justify-between items-center text-on-surface-variant font-medium">
-                  <span>Gaji Pokok:</span>
-                  <span className="font-bold font-mono text-on-surface">Rp {empForm.baseSalary.toLocaleString('id-ID')}</span>
-                </div>
-                <div className="flex justify-between items-center text-psy-danger font-medium">
-                  <span>Estimasi PPh 21 TER ({terRates[empForm.kat] || 0.5}%):</span>
-                  <span className="font-bold font-mono">- Rp {Math.round(empForm.baseSalary * ((terRates[empForm.kat] || 0.5) / 100)).toLocaleString('id-ID')}</span>
-                </div>
-                <div className="pt-2 border-t border-outline flex justify-between items-center">
-                  <span className="font-bold text-accent-primary uppercase tracking-wider text-[11px]">Take Home Pay (Net):</span>
-                  <span className="text-base font-bold font-mono text-accent-primary">
-                    Rp {Math.round(empForm.baseSalary - (empForm.baseSalary * ((terRates[empForm.kat] || 0.5) / 100))).toLocaleString('id-ID')}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 mt-6">
-              <button onClick={() => setEditEmpId(null)} className="px-4 py-2.5 rounded-xl border border-outline hover:bg-surface-container text-xs font-bold cursor-pointer">Batal</button>
-              <button onClick={handleSaveEmp} className="px-5 py-2.5 rounded-xl bg-accent-primary text-white text-xs font-bold hover:shadow-lg transition-all cursor-pointer font-display">Simpan Perubahan</button>
+      {/* SlideOver Edit Gaji Karyawan */}
+      <SlideOver
+        isOpen={!!editEmpId}
+        onClose={() => setEditEmpId(null)}
+        title="Edit Struktur Gaji"
+        width="max-w-md"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-on-surface-variant">Gaji Pokok (Rp)</label>
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-xs font-mono font-bold text-on-surface-variant pointer-events-none">Rp</span>
+              <input 
+                type="text" 
+                inputMode="numeric"
+                value={formatThousandDots(empForm.baseSalary)}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setEmpForm({ ...empForm, baseSalary: parseThousandDots(e.target.value) })}
+                placeholder="Contoh: 5.000.000"
+                className="w-full pl-9 p-3 rounded-xl bg-surface-container-lowest border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+              />
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-on-surface-variant">Status PTKP</label>
+              <input 
+                type="text" 
+                value={empForm.ptkp}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setEmpForm({ ...empForm, ptkp: e.target.value })}
+                className="p-3 rounded-xl bg-surface-container-lowest border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-on-surface-variant">Kategori TER (A/B/C)</label>
+              <select 
+                value={empForm.kat}
+                onChange={(e) => setEmpForm({ ...empForm, kat: e.target.value })}
+                className="p-3 rounded-xl bg-surface-container-lowest border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+              >
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-on-surface-variant">Upah Lembur / Jam (Rp)</label>
+            <div className="relative flex items-center">
+              <span className="absolute left-3 text-xs font-mono font-bold text-on-surface-variant pointer-events-none">Rp</span>
+              <input 
+                type="text" 
+                inputMode="numeric"
+                value={formatThousandDots(empForm.rate)}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setEmpForm({ ...empForm, rate: parseThousandDots(e.target.value) })}
+                placeholder="Contoh: 28.400"
+                className="w-full pl-9 p-3 rounded-xl bg-surface-container-lowest border border-outline text-on-surface font-mono font-bold text-sm outline-none focus:border-accent-primary focus:ring-1 focus:ring-accent-primary shadow-sm"
+              />
+            </div>
+          </div>
+
+          {/* Live Preview Simulator Gaji Bersih */}
+          <div className="p-4 rounded-2xl bg-surface-container-low border border-outline space-y-2 text-xs shadow-sm">
+            <div className="flex justify-between items-center text-on-surface-variant font-medium">
+              <span>Gaji Pokok:</span>
+              <span className="font-bold font-mono text-on-surface">Rp {empForm.baseSalary.toLocaleString('id-ID')}</span>
+            </div>
+            <div className="flex justify-between items-center text-psy-danger font-medium">
+              <span>Estimasi PPh 21 TER ({terRates[empForm.kat] || 0.5}%):</span>
+              <span className="font-bold font-mono">- Rp {Math.round(empForm.baseSalary * ((terRates[empForm.kat] || 0.5) / 100)).toLocaleString('id-ID')}</span>
+            </div>
+            <div className="pt-2 mt-2 border-t border-outline flex justify-between items-center">
+              <span className="font-bold text-accent-primary uppercase tracking-wider text-[11px]">Take Home Pay (Net):</span>
+              <span className="text-base font-bold font-mono text-accent-primary">
+                Rp {Math.round(empForm.baseSalary - (empForm.baseSalary * ((terRates[empForm.kat] || 0.5) / 100))).toLocaleString('id-ID')}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-6 mt-4 border-t border-outline">
+            <button 
+              onClick={handleSaveEmp} 
+              className="w-full py-3.5 rounded-xl bg-accent-primary text-white text-xs font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all cursor-pointer font-display shadow-md"
+            >
+              <Settings className="w-4 h-4" /> Simpan Perubahan
+            </button>
+            <button 
+              onClick={() => setEditEmpId(null)} 
+              className="w-full py-3.5 rounded-xl border border-outline hover:bg-surface-container text-xs font-bold cursor-pointer transition-colors"
+            >
+              Batal & Tutup
+            </button>
+          </div>
         </div>
-      )}
+      </SlideOver>
+
+      {/* Bank Direct Transfer Batch Exporter Slide-Over */}
+      <SlideOver 
+        isOpen={showBankExportModal} 
+        onClose={() => setShowBankExportModal(false)}
+        title="Export Batch Transfer Bank"
+        width="max-w-md"
+      >
+        <div className="space-y-6">
+          <p className="text-xs text-on-surface-variant font-medium">Pilih format spesifik perbankan untuk transfer gaji massal.</p>
+          <div className="space-y-3">
+            {[
+              { type: 'BCA' as BankType, title: 'BCA Corporate Payroll', desc: 'Format standar BCA KlikBisnis / Corporate Payroll CSV (No, Rekening, Nama, Nominal, Berita, Kode Cabang).' },
+              { type: 'MANDIRI' as BankType, title: 'Mandiri Cash Management (MCM)', desc: 'Format batch upload Mandiri MCM CSV (Beneficiary Acc, Amount, Remark).' },
+              { type: 'BRI' as BankType, title: 'BRI Mass Disbursement', desc: 'Format batch payroll BRI Cash Management CSV.' },
+              { type: 'GENERIC_CSV' as BankType, title: 'Rekapitulasi Lengkap Sokara (Ledger CSV)', desc: 'Format rekap HR komprehensif termasuk PTKP, TER, dan jam lembur.' }
+            ].map(bank => {
+              const isSelected = selectedBankType === bank.type
+              return (
+                <div
+                  key={bank.type}
+                  onClick={() => {
+                    sound.playClick()
+                    setSelectedBankType(bank.type)
+                  }}
+                  className={cn(
+                    "p-4 rounded-2xl border transition-all cursor-pointer flex items-start justify-between gap-3 shadow-sm",
+                    isSelected 
+                      ? "bg-accent-primary/5 border-accent-primary ring-1 ring-accent-primary" 
+                      : "bg-surface border-outline hover:border-accent-primary/40"
+                  )}
+                >
+                  <div>
+                    <p className="font-bold text-xs text-on-surface">{bank.title}</p>
+                    <p className="text-[11px] text-on-surface-variant mt-1 leading-relaxed">{bank.desc}</p>
+                  </div>
+                  {isSelected && <Check className="w-4 h-4 text-accent-primary shrink-0 mt-0.5" />}
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="p-4 rounded-2xl bg-surface-container border border-outline text-xs text-on-surface-variant space-y-2">
+            <div className="flex items-center justify-between">
+                <span>Total Penerima Karyawan:</span>
+                <span className="font-bold">{employees.length} Orang</span>
+            </div>
+            <div className="flex items-center justify-between text-on-surface">
+                <span className="font-bold">Estimasi Total Transfer:</span>
+                <span className="font-bold font-mono text-accent-primary text-sm">
+                Rp {employees.reduce((acc, emp) => {
+                    const ot = calculateTieredOvertimePay(emp.rate, emp.overtimeHours).totalPay * 4
+                    const gross = emp.baseSalary + ot + (emp.nightShiftsMonth * 50000)
+                    const tax = gross * ((terRates[emp.kat] || 0.5) / 100)
+                    return acc + (gross - tax)
+                }, 0).toLocaleString('id-ID')}
+                </span>
+            </div>
+          </div>
+
+          <button 
+            onClick={() => handleExecuteBankExport(selectedBankType)}
+            className="w-full py-3.5 rounded-xl bg-accent-primary text-white text-xs font-bold hover:shadow-lg transition-all cursor-pointer font-display flex items-center justify-center gap-2 shadow-[0_4px_14px_0_rgba(9,132,227,0.39)]"
+          >
+            <Download className="w-4 h-4" />
+            Unduh Berkas Batch {selectedBankType}
+          </button>
+        </div>
+      </SlideOver>
     </div>
   )
 }

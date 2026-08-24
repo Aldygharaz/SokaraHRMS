@@ -1,13 +1,23 @@
 import { useHRStore } from '@/store/useHRStore'
-import { Users, BrainCircuit, AlertTriangle, Activity, Sparkles, Clock, DollarSign, Flame, UserCheck, TrendingUp, Shield, Info, ShieldCheck, Filter } from 'lucide-react'
+import { Users, BrainCircuit, AlertTriangle, Activity, Sparkles, Clock, DollarSign, Flame, UserCheck, TrendingUp, Shield, Info, ShieldCheck, Filter, Building2, ArrowRight } from 'lucide-react'
 import { TiltCard } from '@/components/motion/TiltCard'
+import { Sparkline } from '@/components/ui/Sparkline'
 import { toast } from 'sonner'
 import { useMemo, useState, useEffect } from 'react'
 import { sound } from '@/lib/sound'
 import { useNavigate } from 'react-router-dom'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { BRANCH_PROFILES } from '@/lib/branches'
-import { cn } from '@/lib/utils'
+import { cn, timeAgo } from '@/lib/utils'
+
+// Helper to parse '09:45 WIB' from mock data back to Date object for timeAgo
+function parseWibToDate(timeStr: string) {
+  if (!timeStr.includes(':')) return new Date()
+  const [hh, mm] = timeStr.replace(/[^0-9:]/g, '').split(':').map(Number)
+  const d = new Date()
+  d.setHours(hh || 0, mm || 0, 0, 0)
+  return d
+}
 
 // Shift schedule config: [startHour, endHour]
 const SHIFT_SCHEDULE: Record<string, [number, number]> = {
@@ -259,10 +269,99 @@ export function ManagerDashboard() {
         </div>
       </div>
 
+      {/* Multi-Branch Operational Command Center (Enterprise Matrix) */}
+      <div className="glass-panel p-6 rounded-3xl border border-outline space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="font-bold text-base text-on-surface font-display flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-accent-primary" />
+              Multi-Branch Command Center
+            </h3>
+            <p className="text-xs text-on-surface-variant">Monitoring komparatif 3 cabang real-time, rasio biaya tenaga kerja, dan peminjaman kru roaming</p>
+          </div>
+          <button
+            onClick={() => { sound.playClick(); navigate('/approval') }}
+            className="px-3.5 py-1.5 rounded-xl bg-surface-container-high border border-outline text-xs font-bold text-accent-primary hover:bg-outline/40 transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+          >
+            <span>Bursa Kru Roaming</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Object.entries(BRANCH_PROFILES).map(([branchKey, profile]) => {
+            const isCurrentActive = activeBranch === branchKey
+            const targetRevTotal = profile.targetDailyRevenue.reduce((a, b) => a + b, 0)
+            const isSudirmanDeficit = branchKey === 'Sudirman'
+            const isKemangFestival = branchKey === 'Kemang'
+
+            return (
+              <div 
+                key={branchKey}
+                onClick={() => {
+                  sound.playClick()
+                  useHRStore.setState({ activeBranch: branchKey })
+                  toast.success(`Cabang aktif dialihkan ke ${branchKey}`)
+                }}
+                className={cn(
+                  "p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-3 relative",
+                  isCurrentActive 
+                    ? "bg-accent-primary/5 border-accent-primary ring-1 ring-accent-primary shadow-sm" 
+                    : "bg-surface-container-low border-outline hover:border-accent-primary/40"
+                )}
+              >
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-psy-safe" />
+                      <p className="font-bold text-sm text-on-surface">{profile.name}</p>
+                    </div>
+                    {isCurrentActive && (
+                      <span className="px-2 py-0.5 rounded-full bg-accent-primary text-white text-[9px] font-bold uppercase font-mono">
+                        Aktif
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-on-surface-variant mt-1 font-mono">{profile.address}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-outline/50 text-xs">
+                  <div className="p-2 rounded-xl bg-surface-container-lowest border border-outline">
+                    <p className="text-[9px] text-on-surface-variant font-bold uppercase">Staf Terisi</p>
+                    <p className="font-bold font-mono text-on-surface mt-0.5">{profile.staffTarget} Staf</p>
+                  </div>
+                  <div className="p-2 rounded-xl bg-surface-container-lowest border border-outline">
+                    <p className="text-[9px] text-on-surface-variant font-bold uppercase">Target Omzet/Mgg</p>
+                    <p className="font-bold font-mono text-on-surface mt-0.5">Rp {(targetRevTotal / 1000000).toFixed(1)} Jt</p>
+                  </div>
+                </div>
+
+                {isSudirmanDeficit ? (
+                  <div className="p-2 rounded-xl bg-psy-warning-bg/50 border border-psy-warning/30 flex items-center justify-between text-[10px]">
+                    <span className="text-psy-warning-text font-bold">⚠️ Butuh +2 Kru Roaming</span>
+                    <span className="font-mono text-accent-primary font-bold">+Rp 50k Saku</span>
+                  </div>
+                ) : isKemangFestival ? (
+                  <div className="p-2 rounded-xl bg-tertiary/10 border border-tertiary/30 flex items-center justify-between text-[10px]">
+                    <span className="text-tertiary font-bold">🎉 Event Art Bazaar Weekend</span>
+                    <span className="font-mono text-tertiary font-bold">Trafik 98%</span>
+                  </div>
+                ) : (
+                  <div className="p-2 rounded-xl bg-psy-safe-bg/30 border border-psy-safe/30 flex items-center justify-between text-[10px]">
+                    <span className="text-psy-safe-text font-bold">✓ Operasional Optimal</span>
+                    <span className="font-mono text-on-surface-variant">Labor 21%</span>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
       {/* 4 Core Metric KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {/* Headcount */}
-        <TiltCard className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-outline hover:border-accent-primary/50 transition-colors shadow-sm">
+        <TiltCard containerClassName="h-full" className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-outline hover:border-accent-primary/50 transition-colors shadow-sm">
           <div className="flex items-start justify-between mb-6">
             <div>
               <div className="flex items-center gap-1">
@@ -271,8 +370,9 @@ export function ManagerDashboard() {
                   <Info className="w-3.5 h-3.5 text-on-surface-variant cursor-help mb-1" />
                 </Tooltip>
               </div>
-              <h3 className="text-4xl font-bold text-on-surface mt-1 font-display">
-                {headcount} <span className="text-base text-on-surface-variant font-semibold">/ 20</span>
+              <h3 className="text-4xl font-bold text-on-surface mt-1 font-display flex items-end gap-3">
+                <span>{headcount} <span className="text-base text-on-surface-variant font-semibold">/ 20</span></span>
+                <div className="mb-2 opacity-50"><Sparkline data={[12, 14, 15, 15, 16, 18, headcount]} height={20} width={60} color="#0984E3" strokeWidth={2}/></div>
               </h3>
             </div>
             <div className="p-3.5 bg-accent-primary/10 rounded-2xl text-accent-primary">
@@ -291,7 +391,7 @@ export function ManagerDashboard() {
         </TiltCard>
 
         {/* Labor Cost Barometer */}
-        <TiltCard className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-outline hover:border-tertiary/50 transition-colors shadow-sm">
+        <TiltCard containerClassName="h-full" className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-outline hover:border-tertiary/50 transition-colors shadow-sm">
           <div className="flex items-start justify-between mb-6">
             <div>
               <div className="flex items-center gap-1">
@@ -300,11 +400,12 @@ export function ManagerDashboard() {
                   <Info className="w-3.5 h-3.5 text-on-surface-variant cursor-help mb-1" />
                 </Tooltip>
               </div>
-              <h3 className="text-3xl font-bold text-on-surface mt-1 font-display">
-                {laborCostRatioPercent}%{' '}
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md font-mono ${laborRatioColor} ${laborRatioBg}`}>
+              <h3 className="text-3xl font-bold text-on-surface mt-1 font-display flex flex-wrap items-end gap-3">
+                <span>{laborCostRatioPercent}%</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-md font-mono mb-1 ${laborRatioColor} ${laborRatioBg}`}>
                   {laborRatioStatus}
                 </span>
+                <div className="mb-2 opacity-50"><Sparkline data={[21, 23, 20, 24, 25, 22, laborCostRatioPercent]} height={20} width={60} color={laborCostRatioPercent < 25 ? "#00b894" : "#fdcb6e"} strokeWidth={2}/></div>
               </h3>
             </div>
             <div className="p-3.5 bg-tertiary/10 rounded-2xl text-tertiary">
@@ -326,7 +427,7 @@ export function ManagerDashboard() {
         </TiltCard>
 
         {/* Attrition Risk */}
-        <TiltCard className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-error/20 bg-error/5 hover:border-error/40 transition-colors shadow-sm">
+        <TiltCard containerClassName="h-full" className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-error/20 bg-error/5 hover:border-error/40 transition-colors shadow-sm">
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="flex items-center gap-1">
@@ -335,8 +436,9 @@ export function ManagerDashboard() {
                   <Info className="w-3.5 h-3.5 text-error cursor-help mb-1" />
                 </Tooltip>
               </div>
-              <h3 className="text-4xl font-bold text-error mt-1 font-display">
-                {highRiskEmployees.length} <span className="text-base text-error/70 font-semibold">Staf</span>
+              <h3 className="text-4xl font-bold text-error mt-1 font-display flex items-end gap-3">
+                <span>{highRiskEmployees.length} <span className="text-base text-error/70 font-semibold">Staf</span></span>
+                <div className="mb-2 opacity-60"><Sparkline data={[1, 0, 2, 1, 3, 2, highRiskEmployees.length]} height={20} width={60} color="#ff7675" strokeWidth={2}/></div>
               </h3>
             </div>
             <div className="p-3.5 bg-error/10 rounded-2xl text-error">
@@ -366,7 +468,7 @@ export function ManagerDashboard() {
         </TiltCard>
 
         {/* AI Auto-Balance */}
-        <TiltCard className="glass-panel rounded-3xl p-6 border-2 border-accent-primary/20 bg-gradient-to-br from-accent-primary/5 to-surface-container flex flex-col justify-between hover:border-accent-primary/40 transition-all shadow-sm">
+        <TiltCard containerClassName="h-full" className="glass-panel rounded-3xl p-6 border-2 border-accent-primary/20 bg-gradient-to-br from-accent-primary/5 to-surface-container flex flex-col justify-between hover:border-accent-primary/40 transition-all shadow-sm">
           <div>
             <div className="flex items-center gap-2 mb-3 bg-surface w-fit px-3 py-1 rounded-full text-[11px] text-accent-primary font-bold shadow-sm border border-accent-primary/10">
               <span className="w-2 h-2 rounded-full bg-accent-primary animate-pulse" />
@@ -467,7 +569,7 @@ export function ManagerDashboard() {
 
               return (
                 <Tooltip 
-                  key={record.id} 
+                  key={`floor-staff-${record.id}-${record.dutyStatus}`} 
                   content={`Staf: ${record.name} • Departemen: ${record.employee?.dept} • Check-in: ${record.timeIn} WIB • Geofence: ${record.geofence} • Koordinat: ${record.coordinates || '-6.2289, 106.8021'}`}
                 >
                   <div className={cn(
@@ -531,7 +633,7 @@ export function ManagerDashboard() {
                 <AlertTriangle className="w-3 h-3" /> Catatan Handover Urgent
               </p>
               {urgentNotes.slice(0, 1).map(note => (
-                <div key={note.id} className="p-2.5 rounded-xl bg-semantic-warning/10 border border-semantic-warning/30 text-[11px] text-on-surface">
+                <div key={`urgent-note-${note.id}`} className="p-2.5 rounded-xl bg-semantic-warning/10 border border-semantic-warning/30 text-[11px] text-on-surface">
                   <p className="font-bold text-semantic-warning text-[10px]">{note.author} — {note.shift}</p>
                   <p className="leading-relaxed mt-0.5">{note.note}</p>
                 </div>
@@ -606,8 +708,8 @@ export function ManagerDashboard() {
                         </p>
                       </div>
                     </div>
-                    <span className="text-[9px] font-mono text-on-surface-variant font-semibold shrink-0 ml-2">
-                      {log.timestamp}
+                    <span className="text-[9px] font-mono text-on-surface-variant font-semibold shrink-0 ml-2 whitespace-nowrap">
+                      {timeAgo(parseWibToDate(log.timestamp))}
                     </span>
                   </div>
                 </Tooltip>
