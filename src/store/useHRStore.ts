@@ -441,12 +441,12 @@ export const useHRStore = create<HRState>()(
         { id: 6, employeeId: 5, title: 'Pelayanan Cepat < 3 Menit', target: 95, current: 88, unit: '%', dueDate: 'Akhir Bulan' }
       ],
       kudosList: [
-        { id: 1, from: 1, to: 2, text: "Makasih banget udah back-up shift saya pas mendadak sakit kemarin! Penyelamat bgt kak! 🙏", type: "teamwork", date: "Hari ini" },
-        { id: 2, from: 3, to: 4, text: "Latte art makin rapi euy, customer meja 4 tadi sampai muji-muji. Pertahankan! ☕", type: "skill", date: "Kemarin" },
-        { id: 3, from: 1, to: 5, text: "Closing super cepat & rapi malam ini. Besok pagi yang buka jadi enak banget. ✨", type: "operational", date: "2 Hari lalu" },
-        { id: 4, from: 2, to: 1, text: "Komunikasi ke tim sangat jelas, handling komplain pelanggan tadi siang juga pro banget! 🌟", type: "leadership", date: "3 Hari lalu" },
-        { id: 5, from: 4, to: 3, text: "Makasih udah ngajarin teknik kalibrasi grinder mesin espresso pagi tadi! 🎓", type: "mentorship", date: "4 Hari lalu" },
-        { id: 6, from: 5, to: 2, text: "Balance kasir 100% akurat minggu ini, ga ada selisih sama sekali. Keren! 💸", type: "accuracy", date: "Minggu lalu" }
+        { id: 1, from: 1, to: 2, text: "Makasih banget udah back-up shift saya pas mendadak sakit kemarin! Penyelamat bgt kak!", type: "teamwork", date: "Hari ini" },
+        { id: 2, from: 3, to: 4, text: "Latte art makin rapi euy, customer meja 4 tadi sampai muji-muji. Pertahankan!", type: "skill", date: "Kemarin" },
+        { id: 3, from: 1, to: 5, text: "Closing super cepat & rapi malam ini. Besok pagi yang buka jadi enak banget.", type: "operational", date: "2 Hari lalu" },
+        { id: 4, from: 2, to: 1, text: "Komunikasi ke tim sangat jelas, handling komplain pelanggan tadi siang juga pro banget!", type: "leadership", date: "3 Hari lalu" },
+        { id: 5, from: 4, to: 3, text: "Makasih udah ngajarin teknik kalibrasi grinder mesin espresso pagi tadi!", type: "mentorship", date: "4 Hari lalu" },
+        { id: 6, from: 5, to: 2, text: "Balance kasir 100% akurat minggu ini, ga ada selisih sama sekali. Keren!", type: "accuracy", date: "Minggu lalu" }
       ],
 
       setActiveTab: (tab) => set({ activeTab: tab }),
@@ -846,21 +846,30 @@ export const useHRStore = create<HRState>()(
           { id: 3, employeeId: 2, title: 'Akurasi Kasir 100%', target: 100, current: 99, unit: '%', dueDate: 'Akhir Bulan' },
           { id: 4, employeeId: 3, title: 'Mentoring Junior Barista', target: 4, current: 2, unit: 'sesi', dueDate: 'Minggu Depan' },
           { id: 5, employeeId: 4, title: 'Training Food Safety', target: 100, current: 45, unit: '%', dueDate: 'Akhir Bulan' },
-          { id: 5, employeeId: 5, title: 'Pelayanan Cepat < 3 Menit', target: 95, current: 88, unit: '%', dueDate: 'Akhir Bulan' }
+          { id: 6, employeeId: 5, title: 'Pelayanan Cepat < 3 Menit', target: 95, current: 88, unit: '%', dueDate: 'Akhir Bulan' }
         ],
         kudosList: [
-          { id: 1, from: 1, to: 2, text: "Makasih banget udah back-up shift saya pas mendadak sakit kemarin! Penyelamat bgt kak! 🙏", type: "teamwork", date: "Hari ini" },
-          { id: 2, from: 3, to: 4, text: "Latte art makin rapi euy, customer meja 4 tadi sampai muji-muji. Pertahankan! ☕", type: "skill", date: "Kemarin" },
-          { id: 3, from: 1, to: 5, text: "Closing super cepat & rapi malam ini. Besok pagi yang buka jadi enak banget. ✨", type: "operational", date: "2 Hari lalu" },
-          { id: 4, from: 2, to: 1, text: "Komunikasi ke tim sangat jelas, handling komplain pelanggan tadi siang juga pro banget! 🌟", type: "leadership", date: "3 Hari lalu" },
-          { id: 5, from: 4, to: 3, text: "Makasih udah ngajarin teknik kalibrasi grinder mesin espresso pagi tadi! 🎓", type: "mentorship", date: "4 Hari lalu" },
-          { id: 6, from: 5, to: 2, text: "Balance kasir 100% akurat minggu ini, ga ada selisih sama sekali. Keren! 💸", type: "accuracy", date: "Minggu lalu" }
+          { id: 1, from: 1, to: 2, text: "Makasih banget udah back-up shift saya pas mendadak sakit kemarin! Penyelamat bgt kak!", type: "teamwork", date: "Hari ini" },
+          { id: 2, from: 3, to: 4, text: "Latte art makin rapi euy, customer meja 4 tadi sampai muji-muji. Pertahankan!", type: "skill", date: "Kemarin" },
+          { id: 3, from: 1, to: 5, text: "Closing super cepat & rapi malam ini. Besok pagi yang buka jadi enak banget.", type: "operational", date: "2 Hari lalu" },
+          { id: 4, from: 2, to: 1, text: "Komunikasi ke tim sangat jelas, handling komplain pelanggan tadi siang juga pro banget!", type: "leadership", date: "3 Hari lalu" },
+          { id: 5, from: 4, to: 3, text: "Makasih udah ngajarin teknik kalibrasi grinder mesin espresso pagi tadi!", type: "mentorship", date: "4 Hari lalu" },
+          { id: 6, from: 5, to: 2, text: "Balance kasir 100% akurat minggu ini, ga ada selisih sama sekali. Keren!", type: "accuracy", date: "Minggu lalu" }
         ]
       })
     }),
     {
       name: 'sokara_hr_store',
-      version: 11,
+      version: 12,
+      migrate: (persistedState: any, version: number) => {
+        if (version < 12 && persistedState && Array.isArray(persistedState.okrGoals)) {
+          persistedState.okrGoals = persistedState.okrGoals.map((g: any, idx: number) => ({
+            ...g,
+            id: idx + 1,
+          }))
+        }
+        return persistedState
+      },
     }
   )
 )

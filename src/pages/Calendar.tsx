@@ -1,11 +1,11 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useHRStore } from '@/store/useHRStore'
-import { Printer, Wand2, Filter, Edit3, X, Send, Layers, Users, Sun, Sparkles, GraduationCap, CheckCheck, Bookmark, DollarSign, Flame, Plus, Check, ArrowRight, ShieldCheck, Activity, AlertCircle } from 'lucide-react'
+import { Printer, Wand2, Filter, Edit3, X, Send, Layers, Users, Sun, Sparkles, GraduationCap, CheckCheck, Bookmark, DollarSign, Flame, Plus, Check, ArrowRight, ShieldCheck, Activity, AlertCircle, AlertTriangle, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { sound } from '@/lib/sound'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Tooltip } from '@/components/ui/Tooltip'
+import { Tooltip, InfoTooltip } from '@/components/ui/Tooltip'
 import { BRANCH_PROFILES } from '@/lib/branches'
 import { auditRosterHealth, generateOptimizedSchedule, resolveScheduleConflicts } from '@/lib/schedulerEngine'
 
@@ -33,6 +33,7 @@ export function Calendar() {
 
   const restoreSnapshot = useHRStore(state => state.restoreSnapshot)
   const [filter, setFilter] = useState('ALL')
+  const [showAnalyticsRows, setShowAnalyticsRows] = useState(false)
   const [editTarget, setEditTarget] = useState<{empId: number, dayIdx: number, empName: string, currentShift: string, dayName: string} | null>(null)
   const [selectedCells, setSelectedCells] = useState<string[]>([])
   const [showTemplateModal, setShowTemplateModal] = useState(false)
@@ -351,103 +352,148 @@ export function Calendar() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 relative" id="calendar-print-area">
-      {/* Header Panel */}
-      <div className="glass-panel spotlight-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-outline">
+    <div className="space-y-6 animate-in fade-in duration-200 relative" id="calendar-print-area">
+      {/* Standardized Clean Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-outline">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-bold text-on-surface font-display">Shift Calendar & Rostering</h2>
+            <h1 className="text-xl md:text-2xl font-bold text-on-surface tracking-tight">
+              Kalender Shift & Roster
+            </h1>
             
-            <Tooltip content={rosterStatus === 'published' ? 'Jadwal telah dipublikasikan dan dapat diakses semua staf di portal karyawan.' : 'Jadwal masih dalam status draf, belum dibroadcast ke staf.'}>
+            <Tooltip
+              title="Status Roster Shift"
+              badge={rosterStatus === 'published' ? 'Live' : 'Draft'}
+              description={rosterStatus === 'published' 
+                ? 'Jadwal telah dipublikasikan secara resmi ke seluruh akun staf.' 
+                : 'Jadwal masih berstatus draft internal manajer dan belum dibroadcast ke staf.'}
+            >
               <span className={cn(
-                "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border font-mono flex items-center gap-1.5 cursor-help",
+                "px-2.5 py-0.5 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 cursor-help",
                 rosterStatus === 'published' 
-                  ? "bg-psy-safe-bg text-psy-safe-text border-psy-safe/30" 
-                  : "bg-psy-warning-bg text-psy-warning-text border-psy-warning/30"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" 
+                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
               )}>
-                <span className={cn("w-1.5 h-1.5 rounded-full", rosterStatus === 'published' ? "bg-psy-safe" : "bg-psy-warning animate-pulse")} />
-                {rosterStatus === 'published' ? 'Published Roster' : 'Draft / Unsaved Changes'}
+                <span className={cn("w-1.5 h-1.5 rounded-full", rosterStatus === 'published' ? "bg-emerald-500" : "bg-amber-500")} />
+                {rosterStatus === 'published' ? 'Published' : 'Draft'}
               </span>
             </Tooltip>
 
-            <Tooltip content="Audit kesehatan jadwal: Indeks Keadilan, Kepatuhan Station, Fatigue, dan UU 13/2003">
+            <Tooltip 
+              title="Audit Kesehatan Roster"
+              badge="Anti-Fatigue AI"
+              description="Evaluasi kepatuhan jadwal multi-faktor: memastikan jeda istirahat minimal 8 jam antar shift, keadilan pembagian akhir pekan, dan pencegahan burnout staf."
+            >
               <button 
                 onClick={() => {
                   sound.playClick()
                   setShowHealthModal(true)
                 }}
                 className={cn(
-                  "px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 shadow-sm cursor-pointer transition-all",
-                  healthReport.overallScore >= 80 ? "bg-psy-safe-bg text-psy-safe-text border-psy-safe/40" : 
-                  healthReport.overallScore >= 60 ? "bg-psy-warning-bg text-psy-warning-text border-psy-warning/40" : 
-                  "bg-psy-danger-bg text-psy-danger-text border-psy-danger/40"
+                  "px-2.5 py-0.5 rounded-full text-[11px] font-semibold border flex items-center gap-1.5 cursor-pointer transition-colors",
+                  healthReport.overallScore >= 80 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : 
+                  healthReport.overallScore >= 60 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20" : 
+                  "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
                 )}
               >
-                <Activity className="w-3.5 h-3.5" /> AI Health: {healthReport.overallScore}%
-                {healthReport.violations.length > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-error animate-ping" />
-                )}
+                <Activity className="w-3 h-3" /> Health: {healthReport.overallScore}%
               </button>
             </Tooltip>
           </div>
-          <p className="text-xs text-on-surface-variant mt-1 font-medium">
-            Matriks penjadwalan 7 hari berstandar 7shifts & Deputy dengan validasi kapasitas kru dan pencegahan kelelahan otomatis.
+          <p className="text-xs text-on-surface-variant mt-1">
+            Matriks penjadwalan 7 hari dengan proteksi beban kerja dan kepatuhan jam kerja staf.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          <Tooltip content="Cetak jadwal roster ke format A4 atau simpan sebagai PDF">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Toggle Analytics Rows for Minimal/Detailed View */}
+          <Tooltip
+            title="Tampilan Analitik Kapasitas"
+            description={showAnalyticsRows ? "Sembunyikan baris rincian kapasitas staf, prediksi trafik, dan rasio biaya untuk tampilan jadwal ringkas." : "Buka baris evaluasi kapasitas shift, prediksi jam sibuk, dan persentase biaya tenaga kerja per hari."}
+          >
+            <button
+              onClick={() => {
+                sound.playClick()
+                setShowAnalyticsRows(!showAnalyticsRows)
+              }}
+              className={cn(
+                "border text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer",
+                showAnalyticsRows 
+                  ? "bg-accent-primary/10 border-accent-primary/40 text-accent-primary font-bold" 
+                  : "bg-surface-low hover:bg-surface-high text-on-surface border-outline"
+              )}
+            >
+              <Layers className="w-3.5 h-3.5 text-accent-primary" />
+              <span>{showAnalyticsRows ? "Sembunyikan Analitik" : "Analitik Kapasitas"}</span>
+            </button>
+          </Tooltip>
+
+          <Tooltip title="Cetak Roster" description="Cetak matriks jadwal 7 hari dalam format laporan siap tempel di area kru.">
             <button 
               onClick={() => {
                 sound.playClick()
                 window.print()
               }}
-              className="bg-surface-container-high text-on-surface hover:text-accent-primary border border-surface-container-highest text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="bg-surface-low hover:bg-surface-high text-on-surface border border-outline text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Printer className="w-4 h-4 text-accent-primary" /> Cetak Roster A4
+              <Printer className="w-3.5 h-3.5 text-on-surface-variant" /> Cetak
             </button>
           </Tooltip>
           
           {activeRole === 'manager' && (
             <>
               {healthReport.violations.length > 0 && (
-                <Tooltip content={`Terdapat ${healthReport.violations.length} anomali jadwal. Klik untuk menyelesaikan otomatis dalam 1-klik.`}>
+                <Tooltip
+                  title="Perbaikan Otomatis AI"
+                  badge="SOP Kebugaran"
+                  description={`Menyelesaikan ${healthReport.violations.length} potensi konflik jadwal dan jeda istirahat < 8 jam secara otomatis.`}
+                >
                   <button 
                     onClick={handleAutoResolveConflicts}
-                    className="bg-psy-warning-bg text-psy-warning-text hover:bg-psy-warning/20 border border-psy-warning/50 text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer animate-pulse"
+                    className="bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <Sparkles className="w-4 h-4 text-psy-warning" /> Auto-Fix ({healthReport.violations.length})
+                    <Sparkles className="w-3.5 h-3.5" /> Auto-Fix ({healthReport.violations.length})
                   </button>
                 </Tooltip>
               )}
 
-              <Tooltip content="Kelola template roster shift mingguan (Simpan & Terapkan template 1-klik)">
+              <Tooltip
+                title="Template Roster Mingguan"
+                description="Muat atau simpan pola kombinasi shift yang sudah terbukti optimal agar tidak perlu menyusun jadwal dari awal."
+              >
                 <button 
                   onClick={() => {
                     sound.playClick()
                     setShowTemplateModal(true)
                   }}
-                  className="bg-surface-container-high text-on-surface hover:text-accent-primary border border-outline text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="bg-surface-low hover:bg-surface-high text-on-surface border border-outline text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Bookmark className="w-4 h-4 text-accent-primary" /> Template Roster
+                  <Bookmark className="w-3.5 h-3.5 text-on-surface-variant" /> Template
                 </button>
               </Tooltip>
 
-              <Tooltip content="Buka pratinjau komparasi AI untuk mengisi slot kosong dan melihat peningkatan Indeks Keadilan">
+              <Tooltip
+                title="Optimasi Penjadwalan AI"
+                badge="Multi-Constraint"
+                description="Algoritma otomatis mengisi slot shift kosong dengan mempertimbangkan keahlian stasiun (Barista, Kasir) dan batas rasio biaya tenaga kerja cabang."
+              >
                 <button 
                   onClick={handleOpenAIDiffModal}
-                  className="bg-surface-container-high text-on-surface hover:text-accent-primary border border-outline text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="bg-surface-low hover:bg-surface-high text-on-surface border border-outline text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Wand2 className="w-4 h-4 text-accent-primary" /> Auto-Fill AI Preview
+                  <Wand2 className="w-3.5 h-3.5 text-accent-primary" /> Auto-Fill AI
                 </button>
               </Tooltip>
 
-              <Tooltip content="Publikasikan roster resmi dan kirim notifikasi jadwal ke seluruh staf">
+              <Tooltip
+                title="Publikasikan Roster Resmi"
+                description="Mengunci status jadwal resmi dan langsung mengirimkan broadcast jadwal 7 hari ke seluruh portal staf."
+              >
                 <button 
                   onClick={handlePublish}
-                  className="bg-gradient-to-r from-accent-primary to-primary text-white font-bold text-xs py-2 px-4 rounded-xl flex items-center gap-1.5 hover:shadow-[0_0_18px_rgba(27,95,174,0.4)] transition-all font-display cursor-pointer"
+                  className="bg-accent-primary hover:bg-accent-primary/90 text-white font-semibold text-xs py-1.5 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                 >
-                  <Send className="w-3.5 h-3.5" /> Publish & Broadcast
+                  <Send className="w-3 h-3" /> Publish
                 </button>
               </Tooltip>
             </>
@@ -516,15 +562,15 @@ export function Calendar() {
       {(() => {
         const currentBranch = BRANCH_PROFILES[activeBranch] || BRANCH_PROFILES['Senopati (HQ)']
         return (
-          <div className="glass-panel p-4 rounded-2xl border border-outline bg-gradient-to-r from-surface-container-lowest to-surface-container-low flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+          <div className="surface-card p-3.5 border border-outline bg-surface-low flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-accent-primary/10 text-accent-primary">
-                <Sun className="w-5 h-5 text-amber-500" />
+              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+                <Sun className="w-4 h-4" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-on-surface font-display">{currentBranch.eventContext.title}</h4>
-                  <span className="px-2 py-0.5 rounded-full bg-psy-safe-bg text-psy-safe-text font-bold text-[10px] border border-psy-safe/30 font-mono">
+                  <h4 className="font-semibold text-on-surface">{currentBranch.eventContext.title}</h4>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold text-[10px] border border-emerald-500/20 font-mono">
                     {currentBranch.eventContext.badge}
                   </span>
                 </div>
@@ -535,18 +581,16 @@ export function Calendar() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Tooltip content={`Rekomendasi AI spesifik untuk ${currentBranch.name}`}>
-                <span className="px-3 py-1.5 rounded-xl bg-accent-primary/10 border border-accent-primary/30 text-accent-primary font-bold text-xs flex items-center gap-1.5 cursor-help shrink-0">
-                  <Sparkles className="w-3.5 h-3.5" /> {currentBranch.eventContext.recommendation}
-                </span>
-              </Tooltip>
+              <span className="px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-accent-primary font-medium text-xs flex items-center gap-1.5 shrink-0">
+                <Sparkles className="w-3.5 h-3.5" /> {currentBranch.eventContext.recommendation}
+              </span>
             </div>
           </div>
         )
       })()}
 
       {/* Main Roster Matrix Table */}
-      <div className="glass-panel spotlight-card rounded-3xl overflow-hidden overflow-x-auto border border-outline p-0">
+      <div className="surface-card rounded-2xl overflow-hidden overflow-x-auto border border-outline p-0">
         {filteredEmployees.length === 0 ? (
           <div className="p-8">
             <EmptyState
@@ -570,97 +614,137 @@ export function Calendar() {
                 ))}
               </tr>
 
-              {/* Headcount Capacity Gauge Row (7shifts standard) */}
-              <tr className="bg-surface-container-low border-b border-outline text-[11px]">
-                <td className="p-3 pl-4 font-bold text-on-surface-variant flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-accent-primary" /> Kapasitas Shift
-                </td>
-                {dayMetrics.map((cap, idx) => (
-                  <td key={idx} className="p-2 text-center">
-                    <Tooltip content={`Total Staf: ${cap.totalActive} orang (Pagi: ${cap.pagiCount}, Sore: ${cap.soreCount}, Closing: ${cap.closingCount}). ${cap.isUnderstaffed ? 'Perhatian: Minimum butuh 2 staf Pagi & 2 staf Sore!' : 'Kebutuhan staf terpenuhi secara ideal.'}`}>
-                      <div className={cn(
-                        "p-2 rounded-2xl border font-mono text-[10px] font-bold space-y-1.5 transition-colors cursor-help w-full",
-                        cap.isUnderstaffed 
-                          ? "bg-psy-warning-bg/60 text-psy-warning-text border-psy-warning/40 shadow-sm" 
-                          : "bg-surface-container-high text-on-surface border-outline"
-                      )}>
-                        <div className="flex justify-center items-center gap-1">
-                          <span className="px-1.5 py-0.5 rounded-md bg-accent-primary/20 text-accent-primary text-[9px]">
-                            P:{cap.pagiCount}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded-md bg-tertiary/20 text-tertiary text-[9px]">
-                            S:{cap.soreCount}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded-md bg-semantic-warning/20 text-semantic-warning text-[9px]">
-                            C:{cap.closingCount}
-                          </span>
-                        </div>
-
-                        <div className={cn(
-                          "text-[9px] uppercase tracking-wider font-bold py-0.5 rounded-md",
-                          cap.isUnderstaffed ? "text-psy-warning-text" : "text-psy-safe-text"
-                        )}>
-                          {cap.isUnderstaffed ? '⚠️ Butuh +1' : '✓ Ideal'}
-                        </div>
+              {showAnalyticsRows && (
+                <>
+                  {/* Headcount Capacity Gauge Row (7shifts standard) */}
+                  <tr className="bg-surface-container-low border-b border-outline text-[11px] animate-in fade-in duration-150">
+                    <td className="p-3 pl-4 font-bold text-on-surface flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-accent-primary" /> 
+                        <span>Kapasitas Shift</span>
                       </div>
-                    </Tooltip>
-                  </td>
-                ))}
-              </tr>
+                      <InfoTooltip 
+                        title="Kapasitas Shift Harian" 
+                        badge="7shifts Standard" 
+                        description="Memantau pemenuhan minimum kru operasional cabang: Standar kedai mensyaratkan minimal 2 staf Pagi & 2 staf Sore." 
+                      />
+                    </td>
+                    {dayMetrics.map((cap, idx) => (
+                      <td key={idx} className="p-2 text-center">
+                        <Tooltip 
+                          title={`Kapasitas Hari ${DAYS[idx]}`}
+                          badge={cap.isUnderstaffed ? "Kurang Kru" : "Ideal"}
+                          description={`Total staf aktif: ${cap.totalActive} orang (Pagi: ${cap.pagiCount}, Sore: ${cap.soreCount}, Closing: ${cap.closingCount}). ${cap.isUnderstaffed ? 'Perhatian: Minimum butuh 2 staf Pagi & 2 staf Sore!' : 'Kebutuhan staf terpenuhi secara ideal.'}`}
+                        >
+                          <div className={cn(
+                            "p-2 rounded-xl border font-mono text-[10px] font-bold space-y-1.5 transition-colors cursor-help w-full",
+                            cap.isUnderstaffed 
+                              ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 shadow-xs" 
+                              : "bg-surface-container text-on-surface border-outline"
+                          )}>
+                            <div className="flex justify-center items-center gap-1">
+                              <span className="px-1.5 py-0.5 rounded bg-accent-primary/20 text-accent-primary text-[9px]">
+                                P:{cap.pagiCount}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-500 text-[9px]">
+                                S:{cap.soreCount}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 text-[9px]">
+                                C:{cap.closingCount}
+                              </span>
+                            </div>
 
-              {/* Demand Forecasting Heatmap Row (Deputy Standard) */}
-              <tr className="bg-surface-container-low/80 border-b border-outline text-[11px]">
-                <td className="p-3 pl-4 font-bold text-on-surface-variant flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5 text-error" /> Prediksi Trafik
-                </td>
-                {dayMetrics.map((cap, idx) => (
-                  <td key={idx} className="p-2 text-center">
-                    <Tooltip content={`Prediksi Trafik: ${cap.forecast.level} (${cap.forecast.score}%) • Jam Puncak: ${cap.forecast.peakTime}`}>
-                      <div className="p-2 rounded-2xl bg-surface-container-lowest border border-outline font-mono text-[10px] space-y-1 cursor-help">
-                        <div className="flex justify-between items-center text-[9px]">
-                          <span className="font-bold text-on-surface">{cap.forecast.level}</span>
-                          <span className={cn(
-                            "font-bold",
-                            cap.forecast.score > 80 ? "text-error" : cap.forecast.score > 50 ? "text-semantic-warning" : "text-psy-safe-text"
-                          )}>{cap.forecast.score}%</span>
-                        </div>
-                        <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
-                          <div 
-                            className={cn(
-                              "h-full rounded-full transition-all",
-                              cap.forecast.score > 80 ? "bg-error" : cap.forecast.score > 50 ? "bg-semantic-warning" : "bg-psy-safe"
-                            )}
-                            style={{ width: `${cap.forecast.score}%` }}
-                          />
-                        </div>
-                        <p className="text-[8px] text-on-surface-variant font-sans truncate">{cap.forecast.peakTime}</p>
-                      </div>
-                    </Tooltip>
-                  </td>
-                ))}
-              </tr>
+                            <div className={cn(
+                              "text-[9px] uppercase tracking-wider font-bold py-0.5 rounded",
+                              cap.isUnderstaffed ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"
+                            )}>
+                              {cap.isUnderstaffed ? 'Butuh +1' : 'Ideal'}
+                            </div>
+                          </div>
+                        </Tooltip>
+                      </td>
+                    ))}
+                  </tr>
 
-              {/* Live Labor Cost Ratio Row (7shifts Standard) */}
-              <tr className="bg-surface-container-lowest border-b border-outline text-[11px]">
-                <td className="p-3 pl-4 font-bold text-on-surface-variant flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5 text-tertiary" /> Labor Cost %
-                </td>
-                {dayMetrics.map((cap, idx) => (
-                  <td key={idx} className="p-2 text-center">
-                    <Tooltip content={`Biaya Staf Harian: Rp ${cap.dailyLaborCost.toLocaleString('id-ID')} • Target Omzet: Rp ${cap.targetRev.toLocaleString('id-ID')} (Rasio: ${cap.laborRatio}% • Benchmark Sehat: <25%)`}>
-                      <div className={cn(
-                        "p-1.5 rounded-xl border font-mono text-[10px] cursor-help flex items-center justify-center gap-1.5",
-                        cap.laborRatio <= 22 ? "bg-psy-safe-bg/40 text-psy-safe-text border-psy-safe/30" :
-                        cap.laborRatio <= 28 ? "bg-surface-container-high text-on-surface border-outline" :
-                        "bg-psy-warning-bg/40 text-psy-warning-text border-psy-warning/30"
-                      )}>
-                        <span className="font-bold">{cap.laborRatio}%</span>
-                        <span className="text-[9px] opacity-70">Rp {(cap.dailyLaborCost / 1000).toFixed(0)}k</span>
+                  {/* Demand Forecasting Heatmap Row (Deputy Standard) */}
+                  <tr className="bg-surface-container-low border-b border-outline text-[11px] animate-in fade-in duration-150">
+                    <td className="p-3 pl-4 font-bold text-on-surface flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Flame className="w-3.5 h-3.5 text-rose-500" /> 
+                        <span>Prediksi Trafik</span>
                       </div>
-                    </Tooltip>
-                  </td>
-                ))}
-              </tr>
+                      <InfoTooltip 
+                        title="Proyeksi Beban Pesanan" 
+                        badge="Deputy Benchmark" 
+                        description="Estimasi jam sibuk pelanggan berdasarkan data historis penjualan dan kalender event cabang sekitar." 
+                      />
+                    </td>
+                    {dayMetrics.map((cap, idx) => (
+                      <td key={idx} className="p-2 text-center">
+                        <Tooltip 
+                          title={`Prediksi Trafik Hari ${DAYS[idx]}`}
+                          badge={`${cap.forecast.level} (${cap.forecast.score}%)`}
+                          description={`Jam puncak kunjungan diperkirakan pukul ${cap.forecast.peakTime}. Pastikan kesiapan stok cup dan barista utama.`}
+                        >
+                          <div className="p-2 rounded-xl bg-surface border border-outline font-mono text-[10px] space-y-1 cursor-help">
+                            <div className="flex justify-between items-center text-[9px]">
+                              <span className="font-bold text-on-surface">{cap.forecast.level}</span>
+                              <span className={cn(
+                                "font-bold",
+                                cap.forecast.score > 80 ? "text-rose-500" : cap.forecast.score > 50 ? "text-amber-500" : "text-emerald-500"
+                              )}>{cap.forecast.score}%</span>
+                            </div>
+                            <div className="w-full bg-surface-container h-1.5 rounded-full overflow-hidden">
+                              <div 
+                                className={cn(
+                                  "h-full rounded-full transition-all",
+                                  cap.forecast.score > 80 ? "bg-rose-500" : cap.forecast.score > 50 ? "bg-amber-500" : "bg-emerald-500"
+                                )}
+                                style={{ width: `${cap.forecast.score}%` }}
+                              />
+                            </div>
+                            <p className="text-[8px] text-on-surface-variant font-sans truncate">{cap.forecast.peakTime}</p>
+                          </div>
+                        </Tooltip>
+                      </td>
+                    ))}
+                  </tr>
+
+                  {/* Live Labor Cost Ratio Row (7shifts Standard) */}
+                  <tr className="bg-surface-container-lowest border-b border-outline text-[11px] animate-in fade-in duration-150">
+                    <td className="p-3 pl-4 font-bold text-on-surface flex items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <DollarSign className="w-3.5 h-3.5 text-accent-primary" /> 
+                        <span>Labor Cost %</span>
+                      </div>
+                      <InfoTooltip 
+                        title="Rasio Biaya Upah Staf" 
+                        badge="Target < 25%" 
+                        description="Perbandingan biaya upah harian terhadap target omset cabang. Rasio < 25% menunjukkan profitabilitas operasional sehat." 
+                      />
+                    </td>
+                    {dayMetrics.map((cap, idx) => (
+                      <td key={idx} className="p-2 text-center">
+                        <Tooltip 
+                          title={`Efisiensi Biaya Hari ${DAYS[idx]}`}
+                          badge={`${cap.laborRatio}% Omset`}
+                          description={`Biaya staf harian: Rp ${cap.dailyLaborCost.toLocaleString('id-ID')} dari target omset Rp ${cap.targetRev.toLocaleString('id-ID')}. Status: ${cap.laborRatio <= 25 ? 'Sangat Sehat' : 'Perlu Diwaspadai'}.`}
+                        >
+                          <div className={cn(
+                            "p-1.5 rounded-lg border font-mono text-[10px] cursor-help flex items-center justify-center gap-1.5",
+                            cap.laborRatio <= 22 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" :
+                            cap.laborRatio <= 28 ? "bg-surface-container text-on-surface border-outline" :
+                            "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                          )}>
+                            <span className="font-bold">{cap.laborRatio}%</span>
+                            <span className="text-[9px] opacity-70">Rp {(cap.dailyLaborCost / 1000).toFixed(0)}k</span>
+                          </div>
+                        </Tooltip>
+                      </td>
+                    ))}
+                  </tr>
+                </>
+              )}
             </thead>
 
             <tbody className="divide-y divide-surface-container-high text-xs">
@@ -668,7 +752,7 @@ export function Calendar() {
                 const stats = employeeWeeklyStats[emp.id] || { totalHours: 0, shiftDays: 0, isOtRisk: false, otHours: 0 }
 
                 return (
-                  <tr key={emp.id} className="hover:bg-surface-container/60 transition-colors">
+                  <tr key={emp.id} className="hover:bg-surface-container-low transition-colors">
                     <td className="p-4">
                       <Tooltip content={`PTKP: ${emp.ptkp} • KAT ${emp.kat} • Performa: ${emp.rating}/5.0 • Total Jam: ${stats.totalHours} Jam/Mgg (Batas regulasi: 40 Jam)`}>
                         <div className="flex items-center gap-3 cursor-help">
@@ -738,33 +822,33 @@ export function Calendar() {
                         >
                           <Tooltip content={
                             isUnavailConflict 
-                              ? `⚠️ BENTROK JADWAL: ${emp.name} ditugaskan ${shift}, padahal ada ${unavailInfo?.reason}. Klik untuk ubah.`
+                              ? `[Peringatan Bentrok] ${emp.name} ditugaskan ${shift}, padahal ada ${unavailInfo?.reason}. Klik untuk ubah.`
                               : isFatigueConflict
-                              ? `⚠️ FATIGUE RISK: Baru selesai shift Closing (01:00 WIB), langsung masuk Pagi (08:00 WIB). Istirahat < 7 jam.`
+                              ? `[Risiko Fatigue] Baru selesai shift Closing (01:00 WIB), langsung masuk Pagi (08:00 WIB). Istirahat < 7 jam.`
                               : unavailInfo 
                               ? `Info: Kru izin/kuliah hari ini (${unavailInfo.reason}) - Status OFF sesuai.`
                               : (activeRole === 'manager' ? `Klik untuk ubah (Shift+Klik multi-select): ${SHIFT_TOOLTIPS[shift] || shift}` : SHIFT_TOOLTIPS[shift] || shift)
                           }>
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                               <span className={cn(
-                                "px-2.5 py-1.5 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all block w-full",
-                                isUnavailConflict ? "bg-error/20 text-error border border-error/50 ring-1 ring-error" :
-                                isFatigueConflict ? "bg-psy-warning-bg text-psy-warning-text border border-psy-warning/50" :
-                                shift === 'Pagi' ? "bg-accent-primary/20 text-accent-primary border border-accent-primary/30" :
-                                shift === 'Sore' ? "bg-tertiary/20 text-tertiary border border-tertiary/30" :
-                                shift === 'Closing' ? "bg-semantic-warning/20 text-semantic-warning border border-semantic-warning/30" :
-                                "bg-surface-container text-on-surface-variant border border-transparent",
+                                "px-2 py-1 rounded-lg font-semibold text-[11px] transition-colors block w-full",
+                                isUnavailConflict ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30" :
+                                isFatigueConflict ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30" :
+                                shift === 'Pagi' ? "bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20" :
+                                shift === 'Sore' ? "bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20" :
+                                shift === 'Closing' ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20" :
+                                "bg-surface-low text-on-surface-variant border border-outline",
                                 isSelected && "bg-accent-primary text-white border-transparent"
                               )}>
                                 {shift}
                               </span>
                               {isUnavailConflict ? (
                                 <span className="inline-flex items-center gap-1 text-[9px] font-mono text-error font-bold animate-pulse">
-                                  ⚠️ Bentrok
+                                  <AlertTriangle className="w-2.5 h-2.5 text-error" /> Bentrok
                                 </span>
                               ) : isFatigueConflict ? (
                                 <span className="inline-flex items-center gap-1 text-[9px] font-mono text-psy-warning-text font-bold">
-                                  ⚠️ Rest &lt; 7j
+                                  <Clock className="w-2.5 h-2.5 text-psy-warning-text" /> Rest &lt; 7j
                                 </span>
                               ) : unavailInfo ? (
                                 <span className="inline-flex items-center gap-1 text-[9px] font-mono text-on-surface-variant font-medium">
@@ -791,7 +875,7 @@ export function Calendar() {
 
       {/* Floating Batch Selection Action Bar (Linear & Spreadsheet-grade standard) */}
       {selectedCells.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-surface/95 backdrop-blur-xl border border-accent-primary/50 shadow-2xl rounded-2xl p-2.5 flex flex-wrap items-center justify-center gap-2">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-accent-primary/50 shadow-2xl rounded-2xl p-2.5 flex flex-wrap items-center justify-center gap-2">
           <div className="flex items-center gap-2 pl-2 pr-3 border-r border-outline">
             <span className="w-2 h-2 rounded-full bg-accent-primary animate-ping" />
             <span className="font-bold text-xs font-mono text-on-surface">
@@ -800,40 +884,50 @@ export function Calendar() {
           </div>
 
           <div className="flex items-center gap-1.5 text-xs">
-            <button 
-              onClick={() => applyBatchShift('Pagi')}
-              className="px-3 py-1.5 rounded-xl bg-accent-primary text-white font-bold hover:shadow-md transition-all cursor-pointer flex items-center gap-1 font-mono"
-            >
-              <span>Pagi</span> <kbd className="px-1 py-0.2 rounded bg-white/20 text-[9px]">1</kbd>
-            </button>
+            <Tooltip title="Set Shift Pagi" shortcut="[1]" description="Tetapkan shift pagi (08:00 - 17:00 WIB) untuk seluruh sel yang dipilih.">
+              <button 
+                onClick={() => applyBatchShift('Pagi')}
+                className="px-3 py-1.5 rounded-xl bg-accent-primary text-white font-bold hover:shadow-md transition-all cursor-pointer flex items-center gap-1 font-mono"
+              >
+                <span>Pagi</span> <kbd className="px-1 py-0.2 rounded bg-white/20 text-[9px]">1</kbd>
+              </button>
+            </Tooltip>
 
-            <button 
-              onClick={() => applyBatchShift('Sore')}
-              className="px-3 py-1.5 rounded-xl bg-tertiary text-white font-bold hover:shadow-md transition-all cursor-pointer flex items-center gap-1 font-mono"
-            >
-              <span>Sore</span> <kbd className="px-1 py-0.2 rounded bg-white/20 text-[9px]">2</kbd>
-            </button>
+            <Tooltip title="Set Shift Sore" shortcut="[2]" description="Tetapkan shift sore (14:00 - 23:00 WIB) untuk seluruh sel yang dipilih.">
+              <button 
+                onClick={() => applyBatchShift('Sore')}
+                className="px-3 py-1.5 rounded-xl bg-tertiary text-white font-bold hover:shadow-md transition-all cursor-pointer flex items-center gap-1 font-mono"
+              >
+                <span>Sore</span> <kbd className="px-1 py-0.2 rounded bg-white/20 text-[9px]">2</kbd>
+              </button>
+            </Tooltip>
 
-            <button 
-              onClick={() => applyBatchShift('Closing')}
-              className="px-3 py-1.5 rounded-xl bg-semantic-warning text-white font-bold hover:shadow-md transition-all cursor-pointer flex items-center gap-1 font-mono"
-            >
-              <span>Closing</span> <kbd className="px-1 py-0.2 rounded bg-white/20 text-[9px]">3</kbd>
-            </button>
+            <Tooltip title="Set Shift Closing" shortcut="[3]" description="Tetapkan shift closing (16:00 - 01:00 WIB) untuk seluruh sel yang dipilih.">
+              <button 
+                onClick={() => applyBatchShift('Closing')}
+                className="px-3 py-1.5 rounded-xl bg-semantic-warning text-white font-bold hover:shadow-md transition-all cursor-pointer flex items-center gap-1 font-mono"
+              >
+                <span>Closing</span> <kbd className="px-1 py-0.2 rounded bg-white/20 text-[9px]">3</kbd>
+              </button>
+            </Tooltip>
 
-            <button 
-              onClick={() => applyBatchShift('OFF')}
-              className="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-bold border border-outline transition-all cursor-pointer flex items-center gap-1 font-mono"
-            >
-              <span>Libur (OFF)</span> <kbd className="px-1 py-0.2 rounded bg-surface-container-highest text-[9px]">4</kbd>
-            </button>
+            <Tooltip title="Set Libur (OFF)" shortcut="[4]" description="Kosongkan jadwal tugas dan tetapkan libur untuk seluruh sel yang dipilih.">
+              <button 
+                onClick={() => applyBatchShift('OFF')}
+                className="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-bold border border-outline transition-all cursor-pointer flex items-center gap-1 font-mono"
+              >
+                <span>Libur (OFF)</span> <kbd className="px-1 py-0.2 rounded bg-surface-container-highest text-[9px]">4</kbd>
+              </button>
+            </Tooltip>
 
-            <button 
-              onClick={() => { sound.playClick(); setSelectedCells([]) }}
-              className="p-1.5 rounded-xl hover:bg-surface-container-high text-on-surface-variant cursor-pointer ml-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <Tooltip content="Batalkan seleksi sel">
+              <button 
+                onClick={() => { sound.playClick(); setSelectedCells([]) }}
+                className="p-1.5 rounded-xl hover:bg-surface-container-high text-on-surface-variant cursor-pointer ml-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </Tooltip>
           </div>
         </div>
       )}
@@ -866,9 +960,9 @@ export function Calendar() {
                   <p className="text-[10px] text-on-surface-variant">Slot kosong terisi</p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-psy-safe-bg/40 border border-psy-safe/30 text-center space-y-1">
+                <div className="p-4 rounded-2xl bg-psy-safe-bg border border-psy-safe/30 text-center space-y-1">
                   <p className="text-[10px] text-psy-safe-text uppercase font-bold">Indeks Keadilan</p>
-                  <p className="text-2xl font-bold font-mono text-psy-safe-text">{fairnessScore} ➔ {diffModal.newFairness}</p>
+                  <p className="text-2xl font-bold font-mono text-psy-safe-text flex items-center justify-center gap-1.5">{fairnessScore} <ArrowRight className="w-4 h-4 text-psy-safe-text inline" /> {diffModal.newFairness}</p>
                   <p className="text-[10px] text-psy-safe-text font-bold">+{Math.max(0, diffModal.newFairness - fairnessScore)} Poin Efisiensi</p>
                 </div>
 
@@ -930,7 +1024,7 @@ export function Calendar() {
       {editTarget && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div 
-            className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in"
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in"
             onClick={() => setEditTarget(null)}
           />
           <div className="relative glass-panel bg-surface-container shadow-2xl rounded-3xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200 border border-outline p-6">
@@ -983,7 +1077,7 @@ export function Calendar() {
       {showTemplateModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div 
-            className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in"
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in"
             onClick={() => setShowTemplateModal(false)}
           />
           <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-2xl p-6 md:p-8 animate-in zoom-in-95 duration-200">
@@ -1034,7 +1128,7 @@ export function Calendar() {
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between pt-2 border-t border-outline/50">
+                      <div className="flex items-center justify-between pt-2 border-t border-outline">
                         <span className="text-[9px] font-mono text-accent-primary font-bold">
                           7 Hari Rotasi
                         </span>
@@ -1086,7 +1180,7 @@ export function Calendar() {
       {showHealthModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div 
-            className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in"
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in"
             onClick={() => setShowHealthModal(false)}
           />
           <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-3xl p-6 md:p-8 animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
@@ -1114,26 +1208,55 @@ export function Calendar() {
                 <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-1">Skor Kesehatan Roster</p>
                 <div className="text-4xl font-bold font-mono text-accent-primary my-1">{healthReport.overallScore}/100</div>
                 <span className={cn(
-                  "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                  "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1",
                   healthReport.overallScore >= 80 ? "bg-psy-safe-bg text-psy-safe-text" : "bg-psy-warning-bg text-psy-warning-text"
                 )}>
-                  {healthReport.overallScore >= 80 ? '✓ Sangat Optimal' : '⚠️ Butuh Penyesuaian'}
+                  {healthReport.overallScore >= 80 ? (
+                    <>
+                      <ShieldCheck className="w-3 h-3 text-psy-safe-text" /> Sangat Optimal
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-3 h-3 text-psy-warning-text" /> Butuh Penyesuaian
+                    </>
+                  )}
                 </span>
               </div>
 
               <div className="col-span-2 grid grid-cols-2 gap-3">
                 <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline">
-                  <p className="text-[10px] text-on-surface-variant font-bold uppercase">Indeks Keadilan</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-[10px] text-on-surface-variant font-bold uppercase">Indeks Keadilan</p>
+                    <InfoTooltip 
+                      title="Keadilan Weekend & Night Shift" 
+                      badge="AI Fairness" 
+                      description="Menilai pemerataan penugasan shift akhir pekan dan closing antar kru agar tidak ada staf yang terbebani secara tidak proporsional." 
+                    />
+                  </div>
                   <p className="text-lg font-bold font-mono text-on-surface mt-0.5">{healthReport.fairnessScore}%</p>
                   <p className="text-[10px] text-on-surface-variant mt-0.5">Keseimbangan shift malam & akhir pekan</p>
                 </div>
                 <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline">
-                  <p className="text-[10px] text-on-surface-variant font-bold uppercase">Cakupan Stasiun</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-[10px] text-on-surface-variant font-bold uppercase">Cakupan Stasiun</p>
+                    <InfoTooltip 
+                      title="Cakupan Kompetensi Stasi" 
+                      badge="SOP Coverage" 
+                      description="Memastikan selalu ada Barista bersertifikasi dan Kasir kompeten di setiap slot shift aktif." 
+                    />
+                  </div>
                   <p className="text-lg font-bold font-mono text-on-surface mt-0.5">{healthReport.stationCoverageScore}%</p>
                   <p className="text-[10px] text-on-surface-variant mt-0.5">Kesiapan Barista Lead & Kasir</p>
                 </div>
                 <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline">
-                  <p className="text-[10px] text-on-surface-variant font-bold uppercase">Pencegahan Fatigue</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-[10px] text-on-surface-variant font-bold uppercase">Pencegahan Fatigue</p>
+                    <InfoTooltip 
+                      title="Mitigasi Risiko Kelelahan" 
+                      badge="Anti-Burnout" 
+                      description="Memverifikasi seluruh staf memiliki jeda istirahat minimal 8 jam antar shift dan tidak bekerja melebihi batas 40 jam per minggu." 
+                    />
+                  </div>
                   <p className="text-lg font-bold font-mono text-on-surface mt-0.5">{healthReport.fatigueSafetyScore}%</p>
                   <p className="text-[10px] text-on-surface-variant mt-0.5">Jeda istirahat minimum 11 jam</p>
                 </div>
@@ -1163,7 +1286,7 @@ export function Calendar() {
               </div>
 
               {healthReport.violations.length === 0 ? (
-                <div className="p-6 rounded-2xl bg-psy-safe-bg/30 border border-psy-safe/30 text-center space-y-1">
+                <div className="p-6 rounded-2xl bg-psy-safe-bg border border-psy-safe/30 text-center space-y-1">
                   <ShieldCheck className="w-8 h-8 text-psy-safe mx-auto" />
                   <p className="font-bold text-xs text-psy-safe-text">Tidak Ditemukan Pelanggaran Jadwal</p>
                   <p className="text-[10px] text-on-surface-variant">Roster sepenuhnya patuh terhadap ketersediaan staf, regulasi istirahat, dan stasiun operasional.</p>
@@ -1200,7 +1323,7 @@ export function Calendar() {
               <button
                 type="button"
                 onClick={() => setShowHealthModal(false)}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-surface-container-high border border-outline text-xs font-bold text-on-surface hover:bg-outline/50 transition-all cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-surface-container-high border border-outline text-xs font-bold text-on-surface hover:bg-surface-container-highest transition-all cursor-pointer"
               >
                 Tutup
               </button>

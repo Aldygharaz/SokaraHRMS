@@ -1,6 +1,5 @@
 import { useHRStore, type Employee } from '@/store/useHRStore'
-import { TiltCard } from '@/components/motion/TiltCard'
-import { UserPlus, Star, ShieldCheck, FilterX, X, Trash2, MessageCircle, Calendar, Search } from 'lucide-react'
+import { UserPlus, Star, ShieldCheck, FilterX, X, Trash2, MessageCircle, Calendar, Search, CheckCircle2 } from 'lucide-react'
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { cn, formatThousandDots, parseThousandDots } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -8,6 +7,7 @@ import { sound } from '@/lib/sound'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { SlideOver } from '@/components/ui/SlideOver'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+import { Tooltip, InfoTooltip } from '@/components/ui/Tooltip'
 
 export function Employees() {
   const employees = useHRStore(state => state.employees)
@@ -147,55 +147,76 @@ export function Employees() {
 
   return (
     <div className="space-y-6">
-      {/* Header Panel */}
-      <div className="glass-panel spotlight-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-outline">
+      {/* Standardized Clean Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-outline">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-on-surface font-display">Data Karyawan</h2>
-            <span className="px-3 py-1 rounded-full bg-surface-container-high text-semantic-neutral text-xs font-bold uppercase tracking-wider border border-semantic-neutral/30 font-mono">
-              {employees.length} Aktif
+            <h1 className="text-xl md:text-2xl font-bold text-on-surface tracking-tight">
+              Data Karyawan
+            </h1>
+            <span className="px-2 py-0.5 rounded-full bg-slate-500/10 text-on-surface-variant text-[10px] font-semibold border border-outline font-mono">
+              {employees.length} Staf Aktif
             </span>
+            <InfoTooltip 
+              title="Direktori Talenta & Profil Staf"
+              badge="Database HR"
+              description="Pusat data kepegawaian cabang, struktur kompensasi, evaluasi performa, dan pemantauan beban kerja staf operasional."
+            />
           </div>
-          <p className="text-xs text-on-surface-variant mt-1 font-medium">
-            Database manajemen talenta, matriks kompetensi, skor kepatuhan, dan profil risiko kelelahan.
+          <p className="text-xs text-on-surface-variant mt-1">
+            Database talenta, matriks kompetensi, skor kepatuhan, dan profil beban kerja.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {activeRole === 'manager' && (
-            <button 
-              onClick={() => {
-                sound.playClick()
-                setShowAddModal(true)
-              }}
-              className="bg-gradient-to-r from-accent-primary to-primary text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 transition-all hover:shadow-[0_0_18px_rgba(27,95,174,0.4)] cursor-pointer font-display"
+            <Tooltip
+              title="Tambah Staf Baru"
+              description="Daftarkan karyawan baru lengkap dengan gaji pokok, status PTKP, rate lembur, dan kompetensi awal."
             >
-              <UserPlus className="w-4 h-4" /> Tambah Karyawan Baru
-            </button>
+              <button 
+                onClick={() => {
+                  sound.playClick()
+                  setShowAddModal(true)
+                }}
+                className="bg-accent-primary hover:bg-accent-primary/90 text-white text-xs font-semibold py-1.5 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" /> Tambah Karyawan
+              </button>
+            </Tooltip>
           )}
         </div>
       </div>
 
-      {/* Main View Tabs */}
-      <div className="flex items-center gap-2 border-b border-outline pb-2">
+      {/* Main View Tabs (Clean Segmented Control) */}
+      <div className="flex items-center gap-1.5 p-1 bg-surface-low rounded-xl border border-outline w-fit text-xs">
         <button
           onClick={() => { sound.playClick(); setActiveMainTab('directory') }}
           className={cn(
-            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer",
-            activeMainTab === 'directory' ? "bg-accent-primary text-white shadow-sm" : "text-on-surface-variant hover:bg-surface-container"
+            "px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+            activeMainTab === 'directory' 
+              ? "bg-surface text-on-surface shadow-sm font-bold border border-outline" 
+              : "text-on-surface-variant hover:text-on-surface"
           )}
         >
-          Direktori Karyawan ({employees.length})
+          Direktori ({employees.length})
         </button>
         <button
           onClick={() => { sound.playClick(); setActiveMainTab('matrix') }}
           className={cn(
-            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
-            activeMainTab === 'matrix' ? "bg-accent-primary text-white shadow-sm" : "text-on-surface-variant hover:bg-surface-container"
+            "px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5",
+            activeMainTab === 'matrix' 
+              ? "bg-surface text-on-surface shadow-sm font-bold border border-outline" 
+              : "text-on-surface-variant hover:text-on-surface"
           )}
         >
-          <ShieldCheck className="w-4 h-4" /> Station Skill Matrix & Readiness
+          <ShieldCheck className="w-3.5 h-3.5" /> Station Skill Matrix
         </button>
+        <InfoTooltip 
+          title="Multi-Skilling Matrix"
+          badge="Standar F&B"
+          description="Pemetaan kompetensi stasiun kerja per staf untuk memastikan rotasi fleksibel dan auto-scheduling bebas hambatan operasional."
+        />
       </div>
 
       {activeMainTab === 'directory' ? (
@@ -226,47 +247,49 @@ export function Employees() {
             {/* Filter Pills */}
             <div className="flex flex-wrap items-center gap-2">
               {[
-                { id: 'Semua', label: 'Semua', count: employees.length },
-                { id: 'Barista', label: 'Barista', count: employees.filter(e => e.dept === 'Bar' || e.role.includes('Barista')).length },
-                { id: 'Kasir', label: 'Kasir', count: employees.filter(e => e.dept === 'Front' || e.role.includes('Kasir')).length },
-                { id: 'High Risk', label: 'High Risk', count: employees.filter(e => (e.attritionRisk || 0) > 40).length }
-              ].map(({ id, label, count }) => (
-                <button
-                  key={id}
-                  data-testid={`filter-${id.toLowerCase().replace(/\s+/g, '-')}`}
-                  onClick={() => {
-                    sound.playClick()
-                    setActiveFilter(id)
-                  }}
-                  className={cn(
-                    "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5",
-                    activeFilter === id 
-                      ? "bg-accent-primary text-white border-accent-primary shadow-sm" 
-                      : "bg-surface-container-lowest hover:bg-surface-container-high text-on-surface-variant border-outline"
-                  )}
-                >
-                  <span>{label}</span>
-                  <span className={cn(
-                    "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
-                    activeFilter === id ? "bg-white/20 text-white" : "bg-surface-container text-on-surface-variant"
-                  )}>
-                    {count}
-                  </span>
-                </button>
+                { id: 'Semua', label: 'Semua', count: employees.length, desc: 'Tampilkan seluruh staf aktif cabang' },
+                { id: 'Barista', label: 'Barista', count: employees.filter(e => e.dept === 'Bar' || e.role.includes('Barista')).length, desc: 'Filter kru divisi Bar & Espresso' },
+                { id: 'Kasir', label: 'Kasir', count: employees.filter(e => e.dept === 'Front' || e.role.includes('Kasir')).length, desc: 'Filter staf divisi Frontline & Kasir POS' },
+                { id: 'High Risk', label: 'High Risk', count: employees.filter(e => (e.attritionRisk || 0) > 40).length, desc: 'Staf dengan risiko kelelahan dan potensi resign di atas 40%' }
+              ].map(({ id, label, count, desc }) => (
+                <Tooltip key={id} content={desc}>
+                  <button
+                    data-testid={`filter-${id.toLowerCase().replace(/\s+/g, '-')}`}
+                    onClick={() => {
+                      sound.playClick()
+                      setActiveFilter(id)
+                    }}
+                    className={cn(
+                      "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer flex items-center gap-1.5",
+                      activeFilter === id 
+                        ? "bg-accent-primary text-white border-accent-primary shadow-sm" 
+                        : "bg-surface-container-lowest hover:bg-surface-container-high text-on-surface-variant border-outline"
+                    )}
+                  >
+                    <span>{label}</span>
+                    <span className={cn(
+                      "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                      activeFilter === id ? "bg-white/20 text-white" : "bg-surface-container text-on-surface-variant"
+                    )}>
+                      {count}
+                    </span>
+                  </button>
+                </Tooltip>
               ))}
 
               {(activeFilter !== 'Semua' || searchQuery) && (
-                <button 
-                  onClick={() => {
-                    sound.playClick()
-                    setActiveFilter('Semua')
-                    setSearchQuery('')
-                  }}
-                  className="flex items-center gap-1 text-xs font-bold text-on-surface-variant hover:text-accent-primary px-2.5 py-1.5 transition-colors cursor-pointer"
-                  title="Reset Filter & Pencarian (Ctrl+Shift+F)"
-                >
-                  <FilterX className="w-3.5 h-3.5" /> Reset
-                </button>
+                <Tooltip title="Reset Filter" shortcut="Ctrl + Shift + F" description="Kembalikan tampilan ke seluruh staf dan kosongkan kotak pencarian.">
+                  <button 
+                    onClick={() => {
+                      sound.playClick()
+                      setActiveFilter('Semua')
+                      setSearchQuery('')
+                    }}
+                    className="flex items-center gap-1 text-xs font-bold text-on-surface-variant hover:text-accent-primary px-2.5 py-1.5 transition-colors cursor-pointer"
+                  >
+                    <FilterX className="w-3.5 h-3.5" /> Reset
+                  </button>
+                </Tooltip>
               )}
             </div>
           </div>
@@ -293,15 +316,15 @@ export function Employees() {
                 const isSelected = selectedBulkIds.includes(emp.id)
                 
                 return (
-                <TiltCard 
+                <div 
                   key={emp.id} 
                   onClick={() => {
                     sound.playClick()
                     setSelectedEmployee(emp)
                   }}
                   className={cn(
-                    "glass-panel rounded-2xl border p-5 group transition-all cursor-pointer flex flex-col h-full relative",
-                    isSelected ? "border-accent-primary bg-accent-primary/5 ring-1 ring-accent-primary" : "border-outline hover:border-accent-primary/40"
+                    "surface-card rounded-2xl border p-5 group transition-colors cursor-pointer flex flex-col h-full relative",
+                    isSelected ? "border-accent-primary bg-accent-primary/5 ring-1 ring-accent-primary" : "border-outline hover:border-slate-400 dark:hover:border-slate-600"
                   )}
                 >
                   {/* Bulk Select Checkbox */}
@@ -318,7 +341,7 @@ export function Employees() {
                     >
                       <div className={cn(
                         "w-5 h-5 rounded-md border flex items-center justify-center transition-all",
-                        isSelected ? "bg-accent-primary border-accent-primary text-white" : "border-outline bg-surface-container hover:border-accent-primary"
+                        isSelected ? "bg-accent-primary border-accent-primary text-white" : "border-outline bg-surface-low hover:border-accent-primary"
                       )}>
                         {isSelected && <ShieldCheck className="w-3.5 h-3.5" />}
                       </div>
@@ -327,54 +350,66 @@ export function Employees() {
 
                   <div className="flex justify-between items-start mb-4 pr-6">
                     <div className="relative">
-                      <img src={emp.avatar} alt={emp.name} className="w-16 h-16 rounded-2xl object-cover border-2 border-surface-container-high group-hover:border-accent-primary transition-colors" />
-                      <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-psy-safe text-white rounded-full flex items-center justify-center border-2 border-surface" title="Status: Aktif">
-                        <ShieldCheck className="w-3 h-3" />
-                      </div>
+                      <img src={emp.avatar} alt={emp.name} className="w-14 h-14 rounded-2xl object-cover ring-1 ring-outline" />
+                      <Tooltip content="Status: Staf Aktif Terjadwal">
+                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 text-white rounded-full flex items-center justify-center ring-2 ring-surface cursor-help">
+                          <ShieldCheck className="w-2.5 h-2.5" />
+                        </div>
+                      </Tooltip>
                     </div>
                     <div className="text-right">
-                      <span className="inline-block px-2.5 py-1 bg-surface-container-high text-on-surface-variant font-mono text-[10px] font-bold rounded-lg border border-outline mb-1">
-                        {emp.dept}
-                      </span>
-                      <p className="text-[10px] font-mono text-on-surface-variant font-medium">TER: {emp.kat}</p>
+                      <Tooltip content={`Departemen operasional: ${emp.dept}`}>
+                        <span className="inline-block px-2 py-0.5 bg-surface-low text-on-surface-variant font-mono text-[10px] font-semibold rounded-md border border-outline mb-1 cursor-help">
+                          {emp.dept}
+                        </span>
+                      </Tooltip>
+                      <Tooltip content={`Kategori Tarif Efektif Rata-rata: ${emp.kat} (${emp.ptkp})`}>
+                        <p className="text-[10px] font-mono text-on-surface-variant cursor-help">KAT {emp.kat}</p>
+                      </Tooltip>
                     </div>
                   </div>
 
-                  <div className="mb-4">
-                    <h3 className="font-bold text-on-surface text-base group-hover:text-accent-primary transition-colors font-display">{emp.name}</h3>
-                    <p className="text-xs text-on-surface-variant font-medium">{emp.role}</p>
+                  <div className="mb-3">
+                    <h3 className="font-semibold text-on-surface text-sm group-hover:text-accent-primary transition-colors">{emp.name}</h3>
+                    <p className="text-xs text-on-surface-variant">{emp.role}</p>
                   </div>
 
-                  <div className="mt-auto space-y-3 pt-3 border-t border-outline">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-on-surface-variant font-medium">Rating</span>
-                      <span className="font-bold font-mono text-on-surface flex items-center gap-1">
-                        <Star className="w-3.5 h-3.5 fill-semantic-warning text-semantic-warning" />
-                        {emp.rating}
-                      </span>
-                    </div>
+                  <div className="mt-auto space-y-2 pt-3 border-t border-outline text-xs">
+                    <Tooltip content={`Rating performa kerja ${emp.rating} dari 5.0 bintang (berbasis evaluasi berkala)`}>
+                      <div className="flex justify-between items-center cursor-help">
+                        <span className="text-on-surface-variant">Rating</span>
+                        <span className="font-semibold font-mono text-on-surface flex items-center gap-1">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          {emp.rating}
+                        </span>
+                      </div>
+                    </Tooltip>
 
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="text-on-surface-variant font-medium">Punctuality</span>
-                      <span className="font-bold font-mono text-psy-safe">{emp.punctuality}%</span>
-                    </div>
+                    <Tooltip content={`Tingkat kehadiran tepat waktu dalam 30 hari terakhir: ${emp.punctuality}%`}>
+                      <div className="flex justify-between items-center cursor-help">
+                        <span className="text-on-surface-variant">Punctuality</span>
+                        <span className="font-semibold font-mono text-emerald-600 dark:text-emerald-400">{emp.punctuality}%</span>
+                      </div>
+                    </Tooltip>
 
                     <div className="flex flex-wrap gap-1 pt-1">
                       {emp.skills.map((skill, idx) => (
-                        <span key={idx} className="px-2 py-0.5 bg-surface-container-high text-on-surface-variant text-[10px] font-bold rounded-md border border-outline">
-                          {skill}
-                        </span>
+                        <Tooltip key={idx} content={`Kompetensi tersertifikasi: ${skill}`}>
+                          <span className="px-2 py-0.5 bg-surface-low text-on-surface-variant text-[10px] font-medium rounded-md border border-outline cursor-help">
+                            {skill}
+                          </span>
+                        </Tooltip>
                       ))}
                     </div>
                   </div>
-                </TiltCard>
+                </div>
               )})}
             </div>
           )}
 
           {/* Floating Bulk Action Bar (Asana/Linear UX) */}
           {selectedBulkIds.length > 0 && activeRole === 'manager' && (
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-surface/95 backdrop-blur-xl border border-accent-primary/50 shadow-2xl rounded-2xl p-2.5 flex flex-wrap items-center justify-center gap-2 animate-in slide-in-from-bottom-5">
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[1000] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-accent-primary/50 shadow-2xl rounded-2xl p-2.5 flex flex-wrap items-center justify-center gap-2 animate-in slide-in-from-bottom-5">
               <div className="flex items-center gap-2 pl-2 pr-3 border-r border-outline">
                 <span className="w-2 h-2 rounded-full bg-accent-primary animate-ping" />
                 <span className="font-bold text-xs font-mono text-on-surface whitespace-nowrap">
@@ -383,37 +418,43 @@ export function Employees() {
               </div>
 
               <div className="flex items-center gap-1.5 text-xs">
-                <button 
-                  onClick={() => {
-                    sound.playSuccess()
-                    toast.success(`${selectedBulkIds.length} staf berhasil di-approve / diverifikasi.`)
-                    setSelectedBulkIds([])
-                    import('@/lib/confetti').then(({ fireConfetti }) => fireConfetti())
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-accent-primary text-white font-bold hover:shadow-md transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
-                >
-                  <ShieldCheck className="w-4 h-4" /> Approve Verifikasi
-                </button>
+                <Tooltip content="Verifikasi status dan kepatuhan staf yang dipilih secara serentak">
+                  <button 
+                    onClick={() => {
+                      sound.playSuccess()
+                      toast.success(`${selectedBulkIds.length} staf berhasil di-approve / diverifikasi.`)
+                      setSelectedBulkIds([])
+                      import('@/lib/confetti').then(({ fireConfetti }) => fireConfetti())
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-accent-primary text-white font-bold hover:shadow-md transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                  >
+                    <ShieldCheck className="w-4 h-4" /> Approve Verifikasi
+                  </button>
+                </Tooltip>
 
-                <button 
-                  onClick={() => {
-                    sound.playClick()
-                    toast.info(`Opsi edit shift massal untuk ${selectedBulkIds.length} staf (WIP).`)
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-bold border border-outline transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
-                >
-                  <Calendar className="w-4 h-4" /> Assign Shift (Batch)
-                </button>
+                <Tooltip content="Tetapkan penugasan jadwal shift serentak untuk staf terpilih">
+                  <button 
+                    onClick={() => {
+                      sound.playClick()
+                      toast.info(`Opsi edit shift massal untuk ${selectedBulkIds.length} staf (WIP).`)
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-container text-on-surface font-bold border border-outline transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                  >
+                    <Calendar className="w-4 h-4" /> Assign Shift (Batch)
+                  </button>
+                </Tooltip>
 
-                <button 
-                  onClick={() => {
-                    sound.playClick()
-                    setSelectedBulkIds([])
-                  }}
-                  className="p-1.5 rounded-xl hover:bg-surface-container-high text-on-surface-variant cursor-pointer ml-1 shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <Tooltip content="Batalkan seleksi staf terpilih">
+                  <button 
+                    onClick={() => {
+                      sound.playClick()
+                      setSelectedBulkIds([])
+                    }}
+                    className="p-1.5 rounded-xl hover:bg-surface-container-high text-on-surface-variant cursor-pointer ml-1 shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </Tooltip>
               </div>
             </div>
           )}
@@ -426,7 +467,7 @@ export function Employees() {
               <h3 className="font-bold text-sm text-on-surface font-display uppercase tracking-wider">
                 Station Skill Matrix & Operational Readiness
               </h3>
-              <p className="text-xs text-on-surface-variant">Pemetaan kompetensi stasiun kerja per staf untuk auto-scheduling bebas botleneck</p>
+              <p className="text-xs text-on-surface-variant">Pemetaan kompetensi stasiun kerja per staf untuk auto-scheduling bebas bottleneck</p>
             </div>
             <span className="text-xs font-mono text-on-surface-variant">{employees.length} Staf Terpetakan</span>
           </div>
@@ -435,12 +476,66 @@ export function Employees() {
             <thead>
               <tr className="bg-surface-container-low border-b border-surface-container-high text-xs text-on-surface-variant uppercase tracking-wider font-bold">
                 <th className="p-4">Karyawan</th>
-                <th className="p-4">Espresso Bar</th>
-                <th className="p-4">POS Frontline</th>
-                <th className="p-4">Cold Kitchen</th>
-                <th className="p-4">Closing Sanitasi</th>
-                <th className="p-4">Ketersediaan</th>
-                <th className="p-4">Tingkat Risiko</th>
+                <th className="p-4">
+                  <div className="flex items-center gap-1.5">
+                    <span>Espresso Bar</span>
+                    <InfoTooltip 
+                      title="Stasi Espresso & Bar"
+                      badge="SOP Bar"
+                      description="Kompetensi ekstraksi kopi, kalibrasi grinder, latte art, dan kecepatan pelayanan bar."
+                    />
+                  </div>
+                </th>
+                <th className="p-4">
+                  <div className="flex items-center gap-1.5">
+                    <span>POS Frontline</span>
+                    <InfoTooltip 
+                      title="Stasi Kasir & POS"
+                      badge="POS EVO"
+                      description="Operasional kasir, rekonsiliasi kas, kecepatan transaksi, dan penanganan pesanan."
+                    />
+                  </div>
+                </th>
+                <th className="p-4">
+                  <div className="flex items-center gap-1.5">
+                    <span>Cold Kitchen</span>
+                    <InfoTooltip 
+                      title="Stasi Kitchen & Prep"
+                      badge="Food Safety"
+                      description="Standar higienitas makanan, FIFO penyimpanan bahan, dan persiapan menu dapur."
+                    />
+                  </div>
+                </th>
+                <th className="p-4">
+                  <div className="flex items-center gap-1.5">
+                    <span>Closing Sanitasi</span>
+                    <InfoTooltip 
+                      title="Lead Closing & Sanitasi"
+                      badge="SOP Tutup"
+                      description="Tanggung jawab rekonsiliasi kasir harian, deep-cleaning bar, dan penguncian gerai."
+                    />
+                  </div>
+                </th>
+                <th className="p-4">
+                  <div className="flex items-center gap-1.5">
+                    <span>Ketersediaan</span>
+                    <InfoTooltip 
+                      title="Jadwal Ketersediaan"
+                      badge="Status Kru"
+                      description="Status ketersediaan kerja staf (penuh waktu atau memiliki jadwal kuliah part-time)."
+                    />
+                  </div>
+                </th>
+                <th className="p-4">
+                  <div className="flex items-center gap-1.5">
+                    <span>Tingkat Risiko</span>
+                    <InfoTooltip 
+                      title="Prediksi Risiko Resign"
+                      badge="AI Attrition"
+                      description="Estimasi risiko turnover staf berdasarkan akumulasi jam lembur dan rotasi shift padat."
+                    />
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-surface-container-high text-xs">
@@ -450,7 +545,7 @@ export function Employees() {
                 const hasUnavail = emp.unavailability && emp.unavailability.length > 0
 
                 return (
-                  <tr key={emp.id} className="hover:bg-surface-container/60 transition-colors">
+                  <tr key={emp.id} className="hover:bg-surface-container-low transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <img src={emp.avatar} alt={emp.name} className="w-8 h-8 rounded-xl object-cover border border-outline" />
@@ -462,48 +557,56 @@ export function Employees() {
                     </td>
                     <td className="p-4">
                       <span className={cn(
-                        "px-2.5 py-1 rounded-lg font-mono text-[10px] font-bold",
+                        "px-2.5 py-1 rounded-lg font-mono text-[10px] font-bold inline-flex items-center gap-1",
                         isBarista ? "bg-accent-primary/20 text-accent-primary border border-accent-primary/30" : "bg-surface-container text-on-surface-variant"
                       )}>
-                        {isBarista ? '★ Master Barista' : 'Basic Espresso'}
+                        {isBarista && <Star className="w-3 h-3 fill-accent-primary text-accent-primary" />}
+                        {isBarista ? 'Master Barista' : 'Basic Espresso'}
                       </span>
                     </td>
                     <td className="p-4">
                       <span className={cn(
-                        "px-2.5 py-1 rounded-lg font-mono text-[10px] font-bold",
+                        "px-2.5 py-1 rounded-lg font-mono text-[10px] font-bold inline-flex items-center gap-1",
                         isKasir ? "bg-tertiary/20 text-tertiary border border-tertiary/30" : "bg-surface-container text-on-surface-variant"
                       )}>
-                        {isKasir ? '★ Kasir Lead' : 'Basic POS'}
+                        {isKasir && <Star className="w-3 h-3 fill-tertiary text-tertiary" />}
+                        {isKasir ? 'Kasir Lead' : 'Basic POS'}
                       </span>
                     </td>
                     <td className="p-4">
-                      <span className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface-variant font-mono text-[10px] font-bold">
-                        ✓ Food Safety
+                      <span className="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface-variant font-mono text-[10px] font-bold inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Food Safety
                       </span>
                     </td>
                     <td className="p-4">
-                      <span className="px-2.5 py-1 rounded-lg bg-semantic-warning/20 text-semantic-warning border border-semantic-warning/30 font-mono text-[10px] font-bold">
-                        ✓ Lead Closing
+                      <span className="px-2.5 py-1 rounded-lg bg-semantic-warning/20 text-semantic-warning border border-semantic-warning/30 font-mono text-[10px] font-bold inline-flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-amber-500" /> Lead Closing
                       </span>
                     </td>
                     <td className="p-4">
                       {hasUnavail ? (
-                        <span className="px-2 py-0.5 rounded-full bg-psy-warning-bg text-psy-warning-text font-bold text-[10px] font-mono">
-                          Kuliah ({emp.unavailability?.length} Hari)
-                        </span>
+                        <Tooltip content={`Jadwal izin/kuliah: ${emp.unavailability?.map(u => `${u.dayName} (${u.reason})`).join(', ')}`}>
+                          <span className="px-2 py-0.5 rounded-full bg-psy-warning-bg text-psy-warning-text font-bold text-[10px] font-mono cursor-help">
+                            Kuliah ({emp.unavailability?.length} Hari)
+                          </span>
+                        </Tooltip>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-psy-safe-bg text-psy-safe-text font-bold text-[10px] font-mono">
-                          Full-Time
-                        </span>
+                        <Tooltip content="Ketersediaan penuh 7 hari tanpa komitmen di luar kerja">
+                          <span className="px-2 py-0.5 rounded-full bg-psy-safe-bg text-psy-safe-text font-bold text-[10px] font-mono cursor-help">
+                            Full-Time
+                          </span>
+                        </Tooltip>
                       )}
                     </td>
                     <td className="p-4">
-                      <span className={cn(
-                        "px-2 py-0.5 rounded-full font-mono text-[10px] font-bold",
-                        (emp.attritionRisk || 0) > 40 ? "bg-error/10 text-error" : "bg-psy-safe-bg text-psy-safe-text"
-                      )}>
-                        {(emp.attritionRisk || 0) > 40 ? `High Risk (${emp.attritionRisk}%)` : `Rendah (${emp.attritionRisk || 12}%)`}
-                      </span>
+                      <Tooltip content={`Faktor risiko: ${emp.attritionFactors?.join(', ') || 'Beban kerja seimbang'}`}>
+                        <span className={cn(
+                          "px-2 py-0.5 rounded-full font-mono text-[10px] font-bold cursor-help",
+                          (emp.attritionRisk || 0) > 40 ? "bg-error/10 text-error" : "bg-psy-safe-bg text-psy-safe-text"
+                        )}>
+                          {(emp.attritionRisk || 0) > 40 ? `High Risk (${emp.attritionRisk}%)` : `Rendah (${emp.attritionRisk || 12}%)`}
+                        </span>
+                      </Tooltip>
                     </td>
                   </tr>
                 )
@@ -537,20 +640,26 @@ export function Employees() {
 
             {/* Performance Stats */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center shadow-sm">
-                <p className="text-[10px] text-on-surface-variant uppercase font-bold">Rating</p>
-                <p className="text-lg font-bold text-on-surface font-mono mt-0.5">{selectedEmployee.rating} / 5.0</p>
-              </div>
-              <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center shadow-sm">
-                <p className="text-[10px] text-on-surface-variant uppercase font-bold">Punctuality</p>
-                <p className="text-lg font-bold text-psy-safe font-mono mt-0.5">{selectedEmployee.punctuality}%</p>
-              </div>
-              <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center shadow-sm">
-                <p className="text-[10px] text-on-surface-variant uppercase font-bold">Attrition Risk</p>
-                <p className={cn("text-lg font-bold font-mono mt-0.5", (selectedEmployee.attritionRisk || 0) > 40 ? "text-psy-danger" : "text-psy-safe")}>
-                  {selectedEmployee.attritionRisk || 5}%
-                </p>
-              </div>
+              <Tooltip content="Skor evaluasi performa berdasarkan standar audit operasional & kecepatan barista">
+                <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center shadow-sm cursor-help">
+                  <p className="text-[10px] text-on-surface-variant uppercase font-bold">Rating</p>
+                  <p className="text-lg font-bold text-on-surface font-mono mt-0.5">{selectedEmployee.rating} / 5.0</p>
+                </div>
+              </Tooltip>
+              <Tooltip content="Persentase clock-in tepat waktu tanpa pelanggaran batas toleransi 10 menit">
+                <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center shadow-sm cursor-help">
+                  <p className="text-[10px] text-on-surface-variant uppercase font-bold">Punctuality</p>
+                  <p className="text-lg font-bold text-psy-safe font-mono mt-0.5">{selectedEmployee.punctuality}%</p>
+                </div>
+              </Tooltip>
+              <Tooltip content="Prediksi risiko turnover staf berdasarkan akumulasi lembur dan rotasi shift padat">
+                <div className="p-3 bg-surface-container-lowest rounded-2xl border border-outline text-center shadow-sm cursor-help">
+                  <p className="text-[10px] text-on-surface-variant uppercase font-bold">Attrition Risk</p>
+                  <p className={cn("text-lg font-bold font-mono mt-0.5", (selectedEmployee.attritionRisk || 0) > 40 ? "text-psy-danger" : "text-psy-safe")}>
+                    {selectedEmployee.attritionRisk || 5}%
+                  </p>
+                </div>
+              </Tooltip>
             </div>
 
             {/* Salary Breakdown */}
@@ -602,26 +711,30 @@ export function Employees() {
 
             {/* SlideOver Actions */}
             <div className="flex flex-col gap-3 pt-4 border-t border-outline">
-              <a 
-                href={`https://wa.me/6281234567890?text=Halo%20${encodeURIComponent(selectedEmployee.name)},%20terkait%20jadwal%20operasional%20kedai%20Senopati...`}
-                target="_blank" 
-                rel="noopener noreferrer"
-                onClick={() => sound.playClick()}
-                className="w-full py-3 rounded-xl bg-psy-safe text-white hover:bg-psy-safe/90 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md"
-              >
-                <MessageCircle className="w-4 h-4" /> Hubungi WhatsApp
-              </a>
+              <Tooltip content={`Kirim pesan WhatsApp langsung ke ${selectedEmployee.name}`}>
+                <a 
+                  href={`https://wa.me/6281234567890?text=Halo%20${encodeURIComponent(selectedEmployee.name)},%20terkait%20jadwal%20operasional%20kedai%20Senopati...`}
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  onClick={() => sound.playClick()}
+                  className="w-full py-3 rounded-xl bg-psy-safe text-white hover:bg-psy-safe/90 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-md"
+                >
+                  <MessageCircle className="w-4 h-4" /> Hubungi WhatsApp
+                </a>
+              </Tooltip>
 
               {activeRole === 'manager' && (
-                <button
-                  onClick={() => {
-                    sound.playClick()
-                    setDeleteTarget(selectedEmployee)
-                  }}
-                  className="w-full py-3 rounded-xl border border-psy-danger/30 text-psy-danger hover:bg-psy-danger/10 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" /> Hapus Data Karyawan
-                </button>
+                <Tooltip content={`Hapus ${selectedEmployee.name} dari database karyawan cabang`}>
+                  <button
+                    onClick={() => {
+                      sound.playClick()
+                      setDeleteTarget(selectedEmployee)
+                    }}
+                    className="w-full py-3 rounded-xl border border-psy-danger/30 text-psy-danger hover:bg-psy-danger/10 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" /> Hapus Data Karyawan
+                  </button>
+                </Tooltip>
               )}
             </div>
           </div>

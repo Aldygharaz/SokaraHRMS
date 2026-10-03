@@ -1,12 +1,11 @@
 import { useHRStore } from '@/store/useHRStore'
-import { TiltCard } from '@/components/motion/TiltCard'
-import { CheckCircle2, XCircle, User, Clock, AlertTriangle, X, Plus, Sparkles, Send, Store, UserCheck, Layers, Building2 } from 'lucide-react'
+import { CheckCircle2, XCircle, User, Clock, AlertTriangle, X, Plus, Sparkles, Send, Store, UserCheck, Layers, Building2, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
 import { useState } from 'react'
 import { sound } from '@/lib/sound'
 import { cn } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Tooltip } from '@/components/ui/Tooltip'
+import { Tooltip, InfoTooltip } from '@/components/ui/Tooltip'
 
 export function Approval() {
   const swapRequests = useHRStore(state => state.swapRequests)
@@ -134,26 +133,34 @@ export function Approval() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header Panel */}
-      <div className="glass-panel spotlight-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-outline">
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Standardized Clean Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-outline">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-on-surface font-display">Approval & Shift Trade Marketplace</h2>
-            <Tooltip content="Jumlah total permohonan swap shift yang menunggu persetujuan manajer">
-              <span className="px-3 py-1 rounded-full bg-psy-warning-bg text-psy-warning-text text-xs font-bold uppercase tracking-wider border border-psy-warning/20 font-mono cursor-help">
-                {displayRequests.filter(r => r.status.includes('Menunggu') || r.status === 'Pending').length} Menunggu
-              </span>
-            </Tooltip>
+            <h1 className="text-xl md:text-2xl font-bold text-on-surface tracking-tight">
+              Approval & Bursa Shift
+            </h1>
+            <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[10px] font-semibold border border-amber-500/20 font-mono">
+              {displayRequests.filter(r => r.status.includes('Menunggu') || r.status === 'Pending').length} Menunggu
+            </span>
+            <InfoTooltip 
+              title="Pusat Pertukaran Shift & Bursa"
+              badge="Shift Operations"
+              description="Kelola pengajuan tukar shift mandiri, bursa shift terbuka (open shifts), dan roaming bantuan cabang dengan validasi otomatis anti-fatigue."
+            />
           </div>
-          <p className="text-xs text-on-surface-variant mt-1 font-medium">
-            Alur pertukaran shift mandiri antar kru berstandar When I Work dan persetujuan manajer dengan validasi pencegahan kelelahan otomatis.
+          <p className="text-xs text-on-surface-variant mt-1">
+            Alur pertukaran shift mandiri antar staf dan persetujuan jadwal dengan audit kelelahan.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {activeRole === 'manager' && (
-            <Tooltip content="Menyetujui semua permintaan swap shift yang lolos uji validasi AI (bebas dari konflik kelelahan)">
+            <Tooltip
+              title="Batch Approval yang Aman"
+              description="Setujui sekaligus semua pengajuan swap yang telah diverifikasi aman oleh AI tanpa potensi bentrok atau kelelahan."
+            >
               <button 
                 onClick={() => {
                   const pendingValid = swapRequests.filter(r => r.status.includes('Menunggu') && !r.isConflict)
@@ -167,36 +174,42 @@ export function Approval() {
                   addAuditLog({ user: 'Manager', action: 'Batch Approval', detail: `Menyetujui ${pendingValid.length} swap shift otomatis` })
                   toast.success(`${pendingValid.length} request disetujui secara masal.`)
                 }}
-                className="bg-psy-safe-bg text-psy-safe-text hover:bg-psy-safe hover:text-white border border-psy-safe/20 text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <CheckCircle2 className="w-4 h-4" /> Approve Semua yang Aman
+                <CheckCircle2 className="w-3.5 h-3.5" /> Approve yang Aman
               </button>
             </Tooltip>
           )}
 
           {activeRole === 'karyawan' && (
             <>
-              <Tooltip content="Lepaskan jadwal shift Anda ke bursa publik agar dapat diambil oleh rekan yang libur">
+              <Tooltip
+                title="Bursa Shift Terbuka"
+                description="Lepas slot shift Anda ke bursa publik agar dapat diambil oleh staf lain yang sedang libur."
+              >
                 <button 
                   onClick={() => {
                     sound.playClick()
                     setShowPostOpenModal(true)
                   }}
-                  className="bg-surface-container-high hover:bg-surface-container text-on-surface text-xs font-bold py-2 px-3.5 rounded-xl border border-outline flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="bg-surface-low hover:bg-surface-high text-on-surface text-xs font-semibold py-1.5 px-3 rounded-lg border border-outline flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Store className="w-4 h-4 text-accent-primary" /> Lempar Shift ke Bursa
+                  <Store className="w-3.5 h-3.5 text-accent-primary" /> Lempar ke Bursa
                 </button>
               </Tooltip>
 
-              <Tooltip content="Ajukan pertukaran jadwal shift dengan rekan kerja spesifik">
+              <Tooltip
+                title="Ajukan Tukar Shift"
+                description="Kirimkan permohonan pertukaran jadwal spesifik dengan staf tertentu untuk ditinjau manajer."
+              >
                 <button 
                   onClick={() => {
                     sound.playClick()
                     setShowSubmitModal(true)
                   }}
-                  className="bg-gradient-to-r from-accent-primary to-primary text-white text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-1.5 hover:shadow-[0_0_18px_rgba(27,95,174,0.4)] transition-all cursor-pointer font-display"
+                  className="bg-accent-primary hover:bg-accent-primary/90 text-white text-xs font-semibold py-1.5 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" /> Ajukan Swap Shift
+                  <Plus className="w-3.5 h-3.5" /> Ajukan Swap
                 </button>
               </Tooltip>
             </>
@@ -204,21 +217,21 @@ export function Approval() {
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-outline pb-2">
+      {/* Navigation Tabs (Clean Segmented Control) */}
+      <div className="flex flex-wrap items-center gap-1.5 p-1 bg-surface-low rounded-xl border border-outline w-fit text-xs">
         <button
           onClick={() => {
             sound.playClick()
             setActiveTab('requests')
           }}
           className={cn(
-            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+            "px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5",
             activeTab === 'requests' 
-              ? "bg-accent-primary text-white shadow-sm" 
-              : "text-on-surface-variant hover:bg-surface-container"
+              ? "bg-surface text-on-surface shadow-sm font-bold border border-outline" 
+              : "text-on-surface-variant hover:text-on-surface"
           )}
         >
-          <Layers className="w-4 h-4" /> Permintaan Swap ({displayRequests.length})
+          <Layers className="w-3.5 h-3.5" /> Swap ({displayRequests.length})
         </button>
         <button
           onClick={() => {
@@ -226,28 +239,38 @@ export function Approval() {
             setActiveTab('marketplace')
           }}
           className={cn(
-            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+            "px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5",
             activeTab === 'marketplace' 
-              ? "bg-accent-primary text-white shadow-sm" 
-              : "text-on-surface-variant hover:bg-surface-container"
+              ? "bg-surface text-on-surface shadow-sm font-bold border border-outline" 
+              : "text-on-surface-variant hover:text-on-surface"
           )}
         >
-          <Store className="w-4 h-4" /> Bursa Shift Terbuka ({openShifts.filter(s => s.status === 'open').length} Tersedia)
+          <Store className="w-3.5 h-3.5" /> Bursa Shift ({openShifts.filter(s => s.status === 'open').length})
         </button>
+        <InfoTooltip 
+          title="Bursa Shift Terbuka (Open Shifts)"
+          badge="Self-Service"
+          description="Slot shift yang dilepas oleh kru dan bebas diambil oleh staf lain yang sedang libur tanpa melanggar batas 40 jam kerja per minggu."
+        />
         <button
           onClick={() => {
             sound.playClick()
             setActiveTab('roaming')
           }}
           className={cn(
-            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+            "px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5",
             activeTab === 'roaming' 
-              ? "bg-accent-primary text-white shadow-sm" 
-              : "text-on-surface-variant hover:bg-surface-container"
+              ? "bg-surface text-on-surface shadow-sm font-bold border border-outline" 
+              : "text-on-surface-variant hover:text-on-surface"
           )}
         >
-          <Building2 className="w-4 h-4" /> Bursa Kru Roaming Antar-Cabang ({roamingRequests.filter(r => r.status === 'open').length})
+          <Building2 className="w-3.5 h-3.5" /> Kru Roaming ({roamingRequests.filter(r => r.status === 'open').length})
         </button>
+        <InfoTooltip 
+          title="Penugasan Roaming Cabang"
+          badge="Mobilisasi Kru"
+          description="Bantuan staf antar cabang (Senopati & Sudirman) untuk mengatasi lonjakan pengunjung, disertai insentif transport Rp 50.000 per shift."
+        />
       </div>
 
       {/* Tab Content: Requests */}
@@ -264,19 +287,19 @@ export function Approval() {
           )}
 
           {displayRequests.map((req) => (
-            <TiltCard key={req.id} className="glass-panel p-5 rounded-3xl border border-outline hover:border-accent-primary/30 transition-all flex flex-col justify-between gap-4">
+            <div key={req.id} className="surface-card p-4 rounded-xl border border-outline hover:border-accent-primary/40 transition-colors flex flex-col justify-between gap-4">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-2xl bg-surface-container-high flex items-center justify-center shrink-0 border border-outline">
-                    <User className="w-5 h-5 text-accent-primary" />
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-surface-container flex items-center justify-center shrink-0 border border-outline">
+                    <User className="w-4 h-4 text-accent-primary" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-on-surface">
+                    <p className="text-xs font-bold text-on-surface">
                       <span className="text-accent-primary">{req.requester}</span> mengajukan tukar shift
                     </p>
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-on-surface-variant font-medium">
-                      <span className="flex items-center gap-1.5 bg-surface-container px-2.5 py-1 rounded-lg border border-outline font-mono">
-                        <Clock className="w-3.5 h-3.5 text-accent-primary" /> {req.targetSlot}
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-on-surface-variant font-medium">
+                      <span className="flex items-center gap-1.5 bg-surface-container-low px-2 py-0.5 rounded-md border border-outline font-mono text-[11px]">
+                        <Clock className="w-3 h-3 text-accent-primary" /> {req.targetSlot}
                       </span>
                       <span>Alasan: {req.reason}</span>
                     </div>
@@ -310,9 +333,9 @@ export function Approval() {
                             })
                           }
                         }}
-                        className="flex-1 md:flex-none py-2 px-4 rounded-xl bg-psy-safe-bg text-psy-safe-text hover:bg-psy-safe hover:text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-psy-safe/20 cursor-pointer"
+                        className="flex-1 md:flex-none py-1.5 px-3 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 border border-emerald-500/30 cursor-pointer"
                       >
-                        <CheckCircle2 className="w-4 h-4" /> Approve
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Approve
                       </button>
                     </Tooltip>
                     <Tooltip content="Tolak permohonan pertukaran shift ini">
@@ -334,9 +357,9 @@ export function Approval() {
                             }
                           })
                         }}
-                        className="flex-1 md:flex-none py-2 px-4 rounded-xl bg-psy-danger-bg text-psy-danger-text hover:bg-psy-danger hover:text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 border border-psy-danger/20 cursor-pointer"
+                        className="flex-1 md:flex-none py-1.5 px-3 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 border border-rose-500/30 cursor-pointer"
                       >
-                        <XCircle className="w-4 h-4" /> Tolak
+                        <XCircle className="w-3.5 h-3.5" /> Tolak
                       </button>
                     </Tooltip>
                   </div>
@@ -346,10 +369,10 @@ export function Approval() {
                 {(!req.status.includes('Menunggu') || activeRole === 'karyawan') && (
                   <div className="flex items-center gap-2">
                     <span className={cn(
-                      "px-3 py-1.5 rounded-xl font-bold text-xs uppercase tracking-wider",
-                      req.status === 'Disetujui' ? "bg-psy-safe-bg text-psy-safe-text border border-psy-safe/30" :
-                      req.status === 'Ditolak' ? "bg-psy-danger-bg text-psy-danger-text border border-psy-danger/30" :
-                      "bg-psy-warning-bg text-psy-warning-text border border-psy-warning/30"
+                      "px-2.5 py-1 rounded-md font-semibold text-xs font-mono",
+                      req.status === 'Disetujui' ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" :
+                      req.status === 'Ditolak' ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20" :
+                      "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
                     )}>
                       {req.status}
                     </span>
@@ -358,22 +381,22 @@ export function Approval() {
               </div>
 
               {/* Enhanced Visual Stepper Timeline with Tooltips */}
-              <div className="pt-3 border-t border-outline/70 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+              <div className="pt-3 border-t border-outline grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
                 <Tooltip content="Langkah 1: Pengajuan telah dikirimkan oleh pemohon ke sistem">
-                  <div className="p-2.5 rounded-xl bg-surface-container-low border border-outline flex items-center gap-2 cursor-help w-full">
-                    <span className="w-5 h-5 rounded-full bg-psy-safe-bg text-psy-safe flex items-center justify-center text-[10px] font-bold">1</span>
+                  <div className="p-2 rounded-lg bg-surface-container-low border border-outline flex items-center gap-2 cursor-help w-full">
+                    <span className="w-4 h-4 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-[10px] font-bold">1</span>
                     <div>
-                      <p className="font-bold text-[11px] text-on-surface">Diajukan</p>
+                      <p className="font-semibold text-[11px] text-on-surface">Diajukan</p>
                       <p className="text-[10px] text-on-surface-variant font-mono">{req.requester}</p>
                     </div>
                   </div>
                 </Tooltip>
 
                 <Tooltip content={req.isConflict ? 'Peringatan: Pola shift berurutan menyebabkan jeda istirahat kurang dari 8 jam.' : 'Pemeriksaan AI: Jadwal tidak menimbulkan beban kerja berlebih.'}>
-                  <div className={cn("p-2.5 rounded-xl border flex items-center gap-2 cursor-help w-full", req.isConflict ? "bg-psy-danger-bg/50 border-psy-danger/30" : "bg-surface-container-low border-outline")}>
-                    <span className={cn("w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold", req.isConflict ? "bg-psy-danger/20 text-psy-danger" : "bg-accent-primary/20 text-accent-primary")}>2</span>
+                  <div className={cn("p-2 rounded-lg border flex items-center gap-2 cursor-help w-full", req.isConflict ? "bg-rose-500/10 border-rose-500/30" : "bg-surface-container-low border-outline")}>
+                    <span className={cn("w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold", req.isConflict ? "bg-rose-500/20 text-rose-600 dark:text-rose-400" : "bg-accent-primary/20 text-accent-primary")}>2</span>
                     <div>
-                      <p className={cn("font-bold text-[11px]", req.isConflict ? "text-psy-danger" : "text-on-surface")}>
+                      <p className={cn("font-semibold text-[11px]", req.isConflict ? "text-rose-600 dark:text-rose-400" : "text-on-surface")}>
                         {req.isConflict ? 'Konflik Kelelahan' : 'Validasi AI'}
                       </p>
                       <p className="text-[10px] text-on-surface-variant">
@@ -384,18 +407,18 @@ export function Approval() {
                 </Tooltip>
 
                 <Tooltip content={`Status persetujuan akhir oleh Manajer: ${req.status}`}>
-                  <div className={cn("p-2.5 rounded-xl border flex items-center gap-2 cursor-help w-full", req.status === 'Disetujui' ? "bg-psy-safe-bg/50 border-psy-safe/30" : req.status === 'Ditolak' ? "bg-psy-danger-bg/50 border-psy-danger/30" : "bg-surface-container-low border-outline")}>
-                    <span className={cn("w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold", req.status === 'Disetujui' ? "bg-psy-safe/20 text-psy-safe" : req.status === 'Ditolak' ? "bg-psy-danger/20 text-psy-danger" : "bg-psy-warning/20 text-psy-warning")}>3</span>
+                  <div className={cn("p-2 rounded-lg border flex items-center gap-2 cursor-help w-full", req.status === 'Disetujui' ? "bg-emerald-500/10 border-emerald-500/30" : req.status === 'Ditolak' ? "bg-rose-500/10 border-rose-500/30" : "bg-surface-container-low border-outline")}>
+                    <span className={cn("w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold", req.status === 'Disetujui' ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : req.status === 'Ditolak' ? "bg-rose-500/20 text-rose-600 dark:text-rose-400" : "bg-amber-500/20 text-amber-600 dark:text-amber-400")}>3</span>
                     <div>
-                      <p className="font-bold text-[11px] text-on-surface">Keputusan Manajer</p>
-                      <p className={cn("text-[10px] font-bold font-mono", req.status === 'Disetujui' ? "text-psy-safe-text" : req.status === 'Ditolak' ? "text-psy-danger" : "text-psy-warning-text")}>
+                      <p className="font-semibold text-[11px] text-on-surface">Keputusan Manajer</p>
+                      <p className={cn("text-[10px] font-semibold font-mono", req.status === 'Disetujui' ? "text-emerald-600 dark:text-emerald-400" : req.status === 'Ditolak' ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400")}>
                         {req.status}
                       </p>
                     </div>
                   </div>
                 </Tooltip>
               </div>
-            </TiltCard>
+            </div>
           ))}
         </div>
       )}
@@ -416,35 +439,35 @@ export function Approval() {
           )}
 
           {openShifts.map((shift) => (
-            <TiltCard 
+            <div 
               key={shift.id} 
               className={cn(
-                "glass-panel p-5 rounded-3xl border flex flex-col justify-between space-y-4",
-                shift.status === 'claimed' ? "opacity-60 border-outline" : "border-accent-primary/40 hover:border-accent-primary"
+                "surface-card p-4 rounded-xl border flex flex-col justify-between space-y-4 transition-colors",
+                shift.status === 'claimed' ? "opacity-60 border-outline" : "border-outline hover:border-accent-primary/40"
               )}
             >
               <div>
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
                     <Tooltip content={`Skill yang dibutuhkan untuk mengambil shift ini: ${shift.role}`}>
-                      <span className="p-2 rounded-xl bg-accent-primary/10 text-accent-primary font-bold text-xs cursor-help">
+                      <span className="px-2 py-0.5 rounded-md bg-accent-primary/10 text-accent-primary font-semibold text-xs cursor-help border border-accent-primary/20">
                         {shift.role}
                       </span>
                     </Tooltip>
-                    <span className="text-xs font-bold text-on-surface">{shift.originalOwner}</span>
+                    <span className="text-xs font-semibold text-on-surface">{shift.originalOwner}</span>
                   </div>
                   <Tooltip content={shift.status === 'open' ? 'Shift ini bebas diambil oleh staf yang libur di hari tersebut' : `Shift telah berhasil diambil alih oleh ${shift.claimedBy}`}>
                     <span className={cn(
-                      "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono cursor-help",
-                      shift.status === 'open' ? "bg-psy-safe-bg text-psy-safe-text border border-psy-safe/30" : "bg-surface-container text-on-surface-variant"
+                      "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider font-mono cursor-help",
+                      shift.status === 'open' ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" : "bg-surface-container text-on-surface-variant"
                     )}>
-                      {shift.status === 'open' ? 'Tersedia untuk Diklaim' : `Diklaim oleh ${shift.claimedBy}`}
+                      {shift.status === 'open' ? 'Tersedia' : `Diklaim oleh ${shift.claimedBy}`}
                     </span>
                   </Tooltip>
                 </div>
 
-                <h4 className="font-bold text-base text-on-surface font-display mt-2">{shift.slot}</h4>
-                <p className="text-xs text-on-surface-variant mt-1">Alasan dilepas: {shift.reason}</p>
+                <h4 className="font-bold text-sm text-on-surface mt-2">{shift.slot}</h4>
+                <p className="text-xs text-on-surface-variant mt-1">Alasan: {shift.reason}</p>
               </div>
 
               <div className="pt-2 border-t border-outline flex justify-between items-center">
@@ -453,14 +476,14 @@ export function Approval() {
                   <Tooltip content="Klaim shift ini dan tambahkan langsung ke jadwal kalender Anda">
                     <button
                       onClick={() => handleClaim(shift.id, shift.slot)}
-                      className="py-2 px-4 rounded-xl bg-accent-primary text-white text-xs font-bold flex items-center gap-1.5 hover:shadow-md transition-all cursor-pointer font-display"
+                      className="py-1.5 px-3 rounded-lg bg-accent-primary text-white text-xs font-semibold flex items-center gap-1.5 hover:bg-accent-primary/90 transition-colors cursor-pointer"
                     >
-                      <UserCheck className="w-3.5 h-3.5" /> Ambil Shift Ini
+                      <UserCheck className="w-3.5 h-3.5" /> Ambil Shift
                     </button>
                   </Tooltip>
                 )}
               </div>
-            </TiltCard>
+            </div>
           ))}
         </div>
       )}
@@ -468,7 +491,7 @@ export function Approval() {
       {/* Tab Content: Roaming Cross-Branch Pool */}
       {activeTab === 'roaming' && (
         <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-surface-container-low border border-outline">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-surface-container-low border border-outline">
             <div>
               <h3 className="font-bold text-sm text-on-surface flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-accent-primary" />
@@ -480,9 +503,9 @@ export function Approval() {
             {activeRole === 'manager' && (
               <button
                 onClick={() => { sound.playClick(); setShowPostRoamingModal(true) }}
-                className="px-4 py-2 rounded-xl bg-accent-primary text-white font-bold text-xs flex items-center gap-1.5 hover:bg-accent-primary/90 transition-all cursor-pointer font-display shrink-0"
+                className="px-3.5 py-1.5 rounded-lg bg-accent-primary text-white font-semibold text-xs flex items-center gap-1.5 hover:bg-accent-primary/90 transition-colors cursor-pointer shrink-0"
               >
-                <Plus className="w-4 h-4" /> Minta Bantuan Kru
+                <Plus className="w-3.5 h-3.5" /> Minta Bantuan Kru
               </button>
             )}
           </div>
@@ -493,26 +516,26 @@ export function Approval() {
               const isClaimed = roaming.status === 'claimed'
 
               return (
-                <TiltCard key={roaming.id} className="glass-panel p-5 rounded-3xl border border-outline space-y-4 flex flex-col justify-between">
+                <div key={roaming.id} className="surface-card p-4 rounded-xl border border-outline space-y-4 flex flex-col justify-between">
                   <div>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-xl bg-accent-primary/10 text-accent-primary font-bold text-xs font-mono">
+                        <span className="px-2 py-0.5 rounded-md bg-accent-primary/10 text-accent-primary font-semibold text-xs font-mono border border-accent-primary/20">
                           Cabang {roaming.targetBranch}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant text-[10px] font-bold">
+                        <span className="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant text-[10px] font-medium border border-outline">
                           {roaming.role}
                         </span>
                       </div>
                       <span className={cn(
-                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                        isClaimed ? "bg-psy-safe-bg text-psy-safe-text" : "bg-psy-warning-bg text-psy-warning-text"
+                        "px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase",
+                        isClaimed ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
                       )}>
-                        {isClaimed ? '✓ Terisi' : 'Tersedia'}
+                        {isClaimed ? 'Terisi' : 'Tersedia'}
                       </span>
                     </div>
 
-                    <h4 className="font-bold text-sm text-on-surface mt-2 font-display">
+                    <h4 className="font-bold text-sm text-on-surface mt-2">
                       Hari {dayNames[roaming.dayIdx]} • Shift {roaming.shiftType}
                     </h4>
                     <p className="text-xs text-on-surface-variant mt-1">{roaming.reason}</p>
@@ -520,24 +543,24 @@ export function Approval() {
 
                   <div className="pt-3 border-t border-outline flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-on-surface-variant uppercase">Uang Saku:</span>
-                      <span className="font-bold font-mono text-xs text-psy-safe-text">+Rp {roaming.travelStipend.toLocaleString('id-ID')}</span>
+                      <span className="text-[10px] font-semibold text-on-surface-variant uppercase">Uang Saku:</span>
+                      <span className="font-bold font-mono text-xs text-emerald-600 dark:text-emerald-400">+Rp {roaming.travelStipend.toLocaleString('id-ID')}</span>
                     </div>
 
                     {!isClaimed ? (
                       <button
                         onClick={() => handleClaimRoaming(roaming.id, roaming.targetBranch, `Shift ${roaming.shiftType}`)}
-                        className="px-4 py-2 rounded-xl bg-gradient-to-r from-accent-primary to-primary text-white font-bold text-xs flex items-center gap-1.5 hover:shadow-md transition-all cursor-pointer font-display"
+                        className="px-3.5 py-1.5 rounded-lg bg-accent-primary hover:bg-accent-primary/90 text-white font-semibold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                       >
-                        <UserCheck className="w-3.5 h-3.5" /> Ambil Shift (+Rp 50k)
+                        <UserCheck className="w-3.5 h-3.5" /> Ambil (+Rp 50k)
                       </button>
                     ) : (
-                      <span className="text-xs font-bold text-on-surface-variant font-mono">
-                        Diambil oleh: {roaming.claimedBy}
+                      <span className="text-xs font-semibold text-on-surface-variant font-mono">
+                        Diambil: {roaming.claimedBy}
                       </span>
                     )}
                   </div>
-                </TiltCard>
+                </div>
               )
             })}
           </div>
@@ -547,7 +570,7 @@ export function Approval() {
       {/* Form Modal Ajukan Swap Shift */}
       {showSubmitModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowSubmitModal(false)} />
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowSubmitModal(false)} />
           <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-5">
               <div>
@@ -637,7 +660,7 @@ export function Approval() {
       {/* Modal Lempar Shift ke Bursa */}
       {showPostOpenModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowPostOpenModal(false)} />
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowPostOpenModal(false)} />
           <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-5">
               <div>
@@ -726,21 +749,21 @@ export function Approval() {
 
             <div className="p-6 space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-2xl bg-psy-danger-bg/40 border border-psy-danger/30 space-y-1.5">
+                <div className="p-3.5 rounded-2xl bg-psy-danger-bg border border-psy-danger/30 space-y-1.5">
                   <span className="text-[10px] font-bold uppercase text-psy-danger-text">Konflik Jadwal:</span>
                   <p className="font-bold text-on-surface">Jeda Istirahat: 5 Jam</p>
-                  <p className="text-[10px] text-on-surface-variant">Closing (01:00) ➔ Pagi (06:00)</p>
-                  <span className="inline-block px-2 py-0.5 rounded bg-psy-danger text-white font-mono text-[9px] font-bold">
-                    ⚠️ Risiko Fatigue Tinggi
+                  <p className="text-[10px] text-on-surface-variant flex items-center gap-1">Closing (01:00) <ArrowRight className="w-2.5 h-2.5 text-on-surface-variant inline" /> Pagi (06:00)</p>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-psy-danger text-white font-mono text-[9px] font-bold">
+                    <AlertTriangle className="w-2.5 h-2.5 text-white" /> Risiko Fatigue Tinggi
                   </span>
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-psy-safe-bg/60 border border-psy-safe/40 space-y-1.5">
+                <div className="p-3.5 rounded-2xl bg-psy-safe-bg border border-psy-safe/40 space-y-1.5">
                   <span className="text-[10px] font-bold uppercase text-psy-safe-text">Rekomendasi AI:</span>
                   <p className="font-bold text-on-surface">Jeda Istirahat: 13 Jam</p>
                   <p className="text-[10px] text-on-surface-variant">Geser ke Shift Sore (14:00 - 23:00)</p>
-                  <span className="inline-block px-2 py-0.5 rounded bg-psy-safe text-white font-mono text-[9px] font-bold">
-                    ✓ 100% Aman & Terverifikasi
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-psy-safe text-white font-mono text-[9px] font-bold">
+                    <CheckCircle2 className="w-2.5 h-2.5 text-white" /> 100% Aman & Terverifikasi
                   </span>
                 </div>
               </div>
@@ -806,7 +829,7 @@ export function Approval() {
       {/* Modal Minta Bantuan Kru Roaming */}
       {showPostRoamingModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowPostRoamingModal(false)} />
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowPostRoamingModal(false)} />
           <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-5">
               <div className="flex items-center gap-2.5">
@@ -888,7 +911,7 @@ export function Approval() {
                 />
               </div>
 
-              <div className="p-3 bg-psy-safe-bg/30 rounded-xl border border-psy-safe/30 text-psy-safe-text text-[11px] font-medium flex items-center justify-between">
+              <div className="p-3 bg-psy-safe-bg rounded-xl border border-psy-safe/30 text-psy-safe-text text-[11px] font-medium flex items-center justify-between">
                 <span>Insentif Uang Saku Kru:</span>
                 <span className="font-bold font-mono text-xs">+Rp 50.000 (Otomatis Masuk Payroll)</span>
               </div>

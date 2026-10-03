@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { useHRStore } from '@/store/useHRStore'
-import { TiltCard } from '@/components/motion/TiltCard'
 import { Landmark, Calculator, Settings, Edit2, X, Printer, FileText, Sliders, CheckCircle2, Sparkles, HelpCircle, User, ArrowRight, Copy, Download, ShieldCheck, Scale, Building2, Check } from 'lucide-react'
 import { toast } from 'sonner'
 import { sound } from '@/lib/sound'
 import { cn, formatThousandDots, parseThousandDots, calculateTieredOvertimePay } from '@/lib/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Tooltip } from '@/components/ui/Tooltip'
+import { Tooltip, InfoTooltip } from '@/components/ui/Tooltip'
 import { SlideOver } from '@/components/ui/SlideOver'
 import { BRANCH_PROFILES } from '@/lib/branches'
 import { exportBankPayrollBatch, type BankType } from '@/lib/bankExport'
@@ -125,83 +124,75 @@ export function Payroll() {
   }
 
   return (
-    <div className="space-y-6 relative">
-      {/* Header Panel */}
-      <div className="glass-panel spotlight-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-outline">
+    <div className="space-y-6 relative animate-in fade-in duration-200">
+      {/* Standardized Clean Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-outline">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-on-surface font-display">
-              {activeRole === 'manager' ? 'Payroll & Tax TER' : 'Slip Gaji Saya'}
-            </h2>
-            <Tooltip content="Kepatuhan pemotongan PPh 21 Tarif Efektif Rata-rata berdasarkan Peraturan Menteri Keuangan No. 168/2023.">
-              <span className="px-3 py-1 rounded-full bg-surface-container-high text-semantic-neutral text-xs font-bold uppercase tracking-wider border border-semantic-neutral/30 font-mono cursor-help">
-                PMK 168/2023
-              </span>
-            </Tooltip>
+            <h1 className="text-xl md:text-2xl font-bold text-on-surface tracking-tight">
+              {activeRole === 'manager' ? 'Penggajian & PPh 21 TER' : 'Slip Gaji Saya'}
+            </h1>
+            <span className="px-2 py-0.5 rounded-full bg-slate-500/10 text-on-surface-variant text-[10px] font-semibold border border-outline font-mono">
+              PMK 168/2023
+            </span>
           </div>
-          <p className="text-xs text-on-surface-variant mt-1 font-medium">
+          <p className="text-xs text-on-surface-variant mt-1">
             {activeRole === 'manager' 
-              ? 'Sistem penggajian otomatis terintegrasi kalkulator PPh 21 TER (Tarif Efektif Rata-rata) sesuai regulasi perpajakan terbaru.' 
-              : 'Rincian gaji pokok, lembur, insentif shift malam, dan pemotongan PPh 21 TER Anda bulan ini.'}
+              ? 'Sistem penggajian otomatis terintegrasi kalkulator PPh 21 TER dan ekspor bank batch.' 
+              : 'Rincian gaji pokok, lembur, insentif shift malam, dan pemotongan PPh 21 TER Anda.'}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           {activeRole === 'manager' && (
             <>
-              <Tooltip content="Ekspor rekapitulasi penggajian ke format CSV standar perbankan resmi (BCA Corporate, Mandiri MCM, BRI)">
-                <button 
-                  onClick={() => {
-                    sound.playClick()
-                    setShowBankExportModal(true)
-                  }}
-                  className="bg-surface-container-high text-on-surface text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all hover:bg-surface-container border border-outline cursor-pointer"
-                >
-                  <Download className="w-4 h-4 text-accent-primary" /> Export CSV Bank
-                </button>
-              </Tooltip>
+              <button 
+                onClick={() => {
+                  sound.playClick()
+                  setShowBankExportModal(true)
+                }}
+                className="bg-surface-low hover:bg-surface-high text-on-surface text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-outline cursor-pointer"
+              >
+                <Download className="w-3.5 h-3.5 text-on-surface-variant" /> Export CSV Bank
+              </button>
 
-              <Tooltip content="Ubah persentase tarif pajak efektif untuk Kategori A, B, dan C">
-                <button 
-                  onClick={() => { 
-                    sound.playClick()
-                    setTerForm(terRates)
-                    setShowTerModal(true)
-                  }}
-                  className="bg-surface-container-high text-on-surface text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-all hover:bg-surface-container border border-outline cursor-pointer"
-                >
-                  <Settings className="w-4 h-4 text-accent-primary" /> Konfigurasi TER
-                </button>
-              </Tooltip>
+              <button 
+                onClick={() => { 
+                  sound.playClick()
+                  setTerForm(terRates)
+                  setShowTerModal(true)
+                }}
+                className="bg-surface-low hover:bg-surface-high text-on-surface text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors border border-outline cursor-pointer"
+              >
+                <Settings className="w-3.5 h-3.5 text-on-surface-variant" /> Konfigurasi TER
+              </button>
 
-              <Tooltip content="Jalankan wizard 3 langkah untuk memvalidasi jam kerja, hitung pajak, dan transfer batch">
-                <button 
-                  onClick={startPayrollWizard}
-                  className="bg-gradient-to-r from-accent-primary to-primary text-white text-xs font-bold py-2 px-4 rounded-xl flex items-center gap-1.5 transition-all hover:shadow-[0_0_18px_rgba(27,95,174,0.4)] cursor-pointer font-display"
-                >
-                  <Calculator className="w-4 h-4" /> Run Payroll Wizard
-                </button>
-              </Tooltip>
+              <button 
+                onClick={startPayrollWizard}
+                className="bg-accent-primary hover:bg-accent-primary/90 text-white text-xs font-semibold py-1.5 px-3.5 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Calculator className="w-3.5 h-3.5" /> Run Payroll Wizard
+              </button>
             </>
           )}
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-outline pb-2">
+      {/* Navigation Tabs (Clean Segmented Control) */}
+      <div className="flex items-center gap-1.5 p-1 bg-surface-low rounded-xl border border-outline w-fit text-xs">
         <button
           onClick={() => {
             sound.playClick()
             setActiveTab('roster')
           }}
           className={cn(
-            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+            "px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5",
             activeTab === 'roster' 
-              ? "bg-accent-primary text-white shadow-sm" 
-              : "text-on-surface-variant hover:bg-surface-container"
+              ? "bg-surface text-on-surface shadow-sm font-bold border border-outline" 
+              : "text-on-surface-variant hover:text-on-surface"
           )}
         >
-          <FileText className="w-4 h-4" /> Slip Gaji Karyawan ({displayEmployees.length})
+          <FileText className="w-3.5 h-3.5" /> Slip Gaji ({displayEmployees.length})
         </button>
         <button
           onClick={() => {
@@ -209,13 +200,13 @@ export function Payroll() {
             setActiveTab('simulator')
           }}
           className={cn(
-            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+            "px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5",
             activeTab === 'simulator' 
-              ? "bg-accent-primary text-white shadow-sm" 
-              : "text-on-surface-variant hover:bg-surface-container"
+              ? "bg-surface text-on-surface shadow-sm font-bold border border-outline" 
+              : "text-on-surface-variant hover:text-on-surface"
           )}
         >
-          <Sliders className="w-4 h-4" /> Simulator Pajak TER
+          <Sliders className="w-3.5 h-3.5" /> Simulator TER
         </button>
         <button
           onClick={() => {
@@ -223,13 +214,13 @@ export function Payroll() {
             setActiveTab('compliance')
           }}
           className={cn(
-            "px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5",
+            "px-3.5 py-1.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1.5",
             activeTab === 'compliance' 
-              ? "bg-accent-primary text-white shadow-sm" 
-              : "text-on-surface-variant hover:bg-surface-container"
+              ? "bg-surface text-on-surface shadow-sm font-bold border border-outline" 
+              : "text-on-surface-variant hover:text-on-surface"
           )}
         >
-          <ShieldCheck className="w-4 h-4" /> Kalkulator THR & BPJS (Regulasi RI)
+          <ShieldCheck className="w-3.5 h-3.5" /> THR & BPJS
         </button>
       </div>
 
@@ -254,14 +245,14 @@ export function Payroll() {
             const netSalary = grossSalary - taxDeduction
 
             return (
-              <TiltCard key={emp.id} className="glass-panel rounded-2xl border border-outline p-5 flex flex-col justify-between h-full relative group">
+              <div key={emp.id} className="surface-card p-5 border border-outline rounded-2xl flex flex-col justify-between h-full relative group">
                 {activeRole === 'manager' && (
                   <Tooltip content="Edit struktur gaji pokok, status PTKP, dan upah lembur staf ini" position="left">
                     <button 
                       onClick={() => openEditModal(emp)}
-                      className="absolute top-4 right-4 p-2 bg-surface-container-high hover:bg-surface-container text-on-surface-variant rounded-full border border-outline opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer"
+                      className="absolute top-4 right-4 p-2 bg-surface-low hover:bg-surface-high text-on-surface-variant rounded-lg border border-outline opacity-0 group-hover:opacity-100 transition-opacity z-10 cursor-pointer"
                     >
-                      <Edit2 className="w-4 h-4" />
+                      <Edit2 className="w-3.5 h-3.5" />
                     </button>
                   </Tooltip>
                 )}
@@ -269,20 +260,18 @@ export function Payroll() {
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
-                      <img src={emp.avatar} alt={emp.name} className="w-10 h-10 rounded-2xl object-cover border border-outline" />
+                      <img src={emp.avatar} alt={emp.name} className="w-9 h-9 rounded-xl object-cover ring-1 ring-outline" />
                       <div>
-                        <h3 className="font-bold text-sm text-on-surface font-display">{emp.name}</h3>
+                        <h3 className="font-semibold text-sm text-on-surface">{emp.name}</h3>
                         <p className="text-[10px] text-on-surface-variant">{emp.role}</p>
                       </div>
                     </div>
-                    <Tooltip content={`Status PTKP: ${emp.ptkp} • Kategori TER: ${emp.kat} (${terPercentage}%)`}>
-                      <span className="px-2.5 py-1 bg-surface-container-high text-xs font-mono font-bold rounded-lg border border-outline cursor-help">
-                        {emp.ptkp} / KAT {emp.kat}
-                      </span>
-                    </Tooltip>
+                    <span className="px-2 py-0.5 bg-surface-low text-xs font-mono font-semibold rounded-md border border-outline">
+                      {emp.ptkp} / KAT {emp.kat}
+                    </span>
                   </div>
                   
-                  <div className="space-y-2 mb-4">
+                  <div className="space-y-1.5 mb-4">
                     <div className="flex justify-between text-xs font-medium">
                       <span className="text-on-surface-variant">Gaji Pokok</span>
                       <span className="text-on-surface font-mono">Rp {emp.baseSalary.toLocaleString('id-ID')}</span>
@@ -292,53 +281,49 @@ export function Payroll() {
                       <span className="text-on-surface font-mono">+ Rp {(emp.overtimeHours * emp.rate).toLocaleString('id-ID')}</span>
                     </div>
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-on-surface-variant">Insentif Shift Malam ({emp.nightShiftsMonth}x)</span>
+                      <span className="text-on-surface-variant">Insentif Malam ({emp.nightShiftsMonth}x)</span>
                       <span className="text-on-surface font-mono">+ Rp {(emp.nightShiftsMonth * 50000).toLocaleString('id-ID')}</span>
                     </div>
                   </div>
 
-                  <div className="border-t border-dashed border-outline pt-3 mb-4 space-y-2">
-                    <div className="flex justify-between text-xs font-bold">
-                      <span className="text-on-surface">Penghasilan Bruto</span>
+                  <div className="border-t border-dashed border-outline pt-2.5 mb-3 space-y-1.5">
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span className="text-on-surface">Bruto</span>
                       <span className="text-on-surface font-mono">Rp {grossSalary.toLocaleString('id-ID')}</span>
                     </div>
-                    <div className="flex justify-between text-xs font-bold text-psy-danger">
-                      <Tooltip content={`Potongan pajak PPh 21 menggunakan tarif efektif rata-rata Kategori ${emp.kat} (${terPercentage}%)`}>
-                        <span className="flex items-center gap-1 cursor-help">
-                          <Landmark className="w-3.5 h-3.5"/> PPh 21 TER ({terPercentage}%)
-                        </span>
-                      </Tooltip>
+                    <div className="flex justify-between text-xs font-semibold text-rose-500">
+                      <span className="flex items-center gap-1">
+                        <Landmark className="w-3 h-3"/> PPh 21 TER ({terPercentage}%)
+                      </span>
                       <span className="font-mono">- Rp {Math.round(taxDeduction).toLocaleString('id-ID')}</span>
                     </div>
                   </div>
                 </div>
 
                 <div>
-                  <div className="bg-surface-container-lowest border border-outline rounded-2xl p-3.5 mb-3">
+                  <div className="bg-surface-low border border-outline rounded-xl p-3 mb-2.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Take Home Pay</span>
-                      <span className="text-lg font-bold text-accent-primary font-mono">Rp {Math.round(netSalary).toLocaleString('id-ID')}</span>
+                      <span className="text-[11px] font-semibold text-on-surface-variant uppercase">Take Home Pay</span>
+                      <span className="text-base font-bold text-accent-primary font-mono">Rp {Math.round(netSalary).toLocaleString('id-ID')}</span>
                     </div>
                   </div>
-                  <Tooltip content="Buka pratinjau dokumen slip gaji format resmi standar Sokara & cetak PDF" className="w-full">
-                    <button 
-                      onClick={() => {
-                        sound.playClick()
-                        setPayslipPreviewEmp({
-                          ...emp,
-                          grossSalary,
-                          terPercentage,
-                          taxDeduction,
-                          netSalary
-                        })
-                      }}
-                      className="w-full bg-surface-container-high hover:bg-surface-container text-on-surface border border-outline py-2.5 px-3 rounded-xl flex items-center justify-center gap-2 transition-colors text-xs font-bold cursor-pointer"
-                    >
-                      <FileText className="w-4 h-4 text-accent-primary" /> Lihat & Cetak Slip Resmi
-                    </button>
-                  </Tooltip>
+                  <button 
+                    onClick={() => {
+                      sound.playClick()
+                      setPayslipPreviewEmp({
+                        ...emp,
+                        grossSalary,
+                        terPercentage,
+                        taxDeduction,
+                        netSalary
+                      })
+                    }}
+                    className="w-full bg-surface-low hover:bg-surface-high text-on-surface border border-outline py-2 px-3 rounded-lg flex items-center justify-center gap-1.5 transition-colors text-xs font-semibold cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-accent-primary" /> Lihat & Cetak Slip Resmi
+                  </button>
                 </div>
-              </TiltCard>
+              </div>
             )
           })}
         </div>
@@ -347,7 +332,7 @@ export function Payroll() {
       {/* Tab: Interactive Tax TER Simulator (Gusto Benchmark) */}
       {activeTab === 'simulator' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 glass-panel p-6 rounded-3xl border border-outline space-y-5">
+          <div className="lg:col-span-2 surface-card p-6 border border-outline space-y-5">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
                 <h3 className="text-base font-bold text-on-surface font-display">Parameter Kompensasi Karyawan</h3>
@@ -384,8 +369,15 @@ export function Payroll() {
 
             {/* Slider: Jam Lembur */}
             <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold">
-                <span className="text-on-surface-variant">Jam Lembur ({simOvertimeHours} Jam @ Rp 28.400)</span>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-on-surface-variant">Jam Lembur ({simOvertimeHours} Jam)</span>
+                  <InfoTooltip
+                    title="Kalkulasi Upah Lembur Berjenjang"
+                    badge="Permenaker 102/2004"
+                    description="Perhitungan resmi upah lembur: Jam ke-1 bernilai 1.5x upah per jam, dan jam ke-2 serta seterusnya bernilai 2x upah per jam."
+                  />
+                </div>
                 <span className="font-mono text-on-surface">+ Rp {simOvertimePay.toLocaleString('id-ID')}</span>
               </div>
               <input 
@@ -401,8 +393,15 @@ export function Payroll() {
 
             {/* Slider: Shift Malam */}
             <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold">
-                <span className="text-on-surface-variant">Insentif Shift Malam ({simNightShifts} Shift @ Rp 50.000)</span>
+              <div className="flex justify-between items-center text-xs font-bold">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-on-surface-variant">Insentif Shift Malam ({simNightShifts} Shift)</span>
+                  <InfoTooltip
+                    title="Insentif Shift Closing"
+                    badge="Rp 50.000 / Shift"
+                    description="Kompensasi tunjangan shift malam (16:00 - 01:00 WIB) atas beban kerja ekstra penutupan kedai dan rekonsiliasi kasir."
+                  />
+                </div>
                 <span className="font-mono text-on-surface">+ Rp {simNightPay.toLocaleString('id-ID')}</span>
               </div>
               <input 
@@ -435,14 +434,26 @@ export function Payroll() {
 
             {/* Kategori TER Selector */}
             <div className="space-y-2 pt-2 border-t border-outline">
-              <label className="text-xs font-bold text-on-surface-variant block">Kategori Tarif Efektif Rata-rata (TER PMK 168/2023)</label>
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs font-bold text-on-surface-variant block">Kategori Tarif Efektif Rata-rata (TER PMK 168/2023)</label>
+                <InfoTooltip
+                  title="Skema Pemotongan PPh 21 TER"
+                  badge="PP 58/2023"
+                  description="Regulasi pajak penghasilan pasal 21 terbaru: Tarif Efektif Bulanan ditentukan berdasarkan status PTKP karyawan (TK/0, K/1, dsb)."
+                />
+              </div>
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { k: 'A', desc: 'TK/0, TK/1, K/0' },
                   { k: 'B', desc: 'TK/2, TK/3, K/1, K/2' },
                   { k: 'C', desc: 'K/3' }
                 ].map(({ k, desc }) => (
-                  <Tooltip key={k} content={`Kategori ${k}: Golongan PTKP ${desc} dengan tarif TER ${terRates[k]}%`}>
+                  <Tooltip 
+                    key={k} 
+                    title={`Kategori ${k} (${terRates[k]}%)`}
+                    badge="PMK 168/2023"
+                    description={`Status PTKP: ${desc}. Menentukan persentase potongan PPh 21 bulanan secara langsung terhadap penghasilan bruto.`}
+                  >
                     <button
                       type="button"
                       onClick={() => {
@@ -450,10 +461,10 @@ export function Payroll() {
                         setSimKat(k)
                       }}
                       className={cn(
-                        "p-3 rounded-2xl border text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all w-full",
+                        "p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1 cursor-pointer transition-all w-full",
                         simKat === k 
-                          ? "bg-accent-primary/10 border-accent-primary text-accent-primary shadow-sm" 
-                          : "bg-surface-container-low text-on-surface border-outline"
+                          ? "bg-accent-primary/10 border-accent-primary text-accent-primary shadow-xs" 
+                          : "bg-surface-low text-on-surface border-outline hover:border-accent-primary/30"
                       )}
                     >
                       <span>Kategori {k}</span>
@@ -468,7 +479,7 @@ export function Payroll() {
 
           {/* Simulator Summary Output & TER Explainer */}
           <div className="space-y-6">
-            <TiltCard className="glass-panel p-6 rounded-3xl border border-outline flex flex-col justify-between space-y-6">
+            <div className="surface-card p-5 rounded-xl border border-outline flex flex-col justify-between space-y-5">
               <div>
                 <div className="flex items-center gap-2 text-xs font-bold text-accent-primary uppercase tracking-wider mb-4">
                   <Sparkles className="w-4 h-4" /> Hasil Simulasi Gaji Bersih
@@ -479,7 +490,7 @@ export function Payroll() {
                     <span className="text-on-surface-variant font-medium">Penghasilan Bruto:</span>
                     <span className="font-bold font-mono text-on-surface">Rp {simGross.toLocaleString('id-ID')}</span>
                   </div>
-                  <div className="flex justify-between text-psy-danger">
+                  <div className="flex justify-between text-rose-500">
                     <span className="font-medium">Potongan PPh 21 TER ({simTerPercentage}%):</span>
                     <span className="font-bold font-mono">- Rp {Math.round(simTax).toLocaleString('id-ID')}</span>
                   </div>
@@ -494,13 +505,13 @@ export function Payroll() {
                 </div>
               </div>
 
-              <div className="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline text-[11px] text-on-surface-variant">
+              <div className="p-3 rounded-lg bg-surface-container-low border border-outline text-[11px] text-on-surface-variant">
                 <p className="font-medium">Dihitung otomatis berbasis regulasi PMK 168/2023 tanpa perhitungan manual yang rumit.</p>
               </div>
-            </TiltCard>
+            </div>
 
             {/* TER Educational Context Card */}
-            <div className="p-5 rounded-3xl bg-surface-container-low border border-outline space-y-3 text-xs">
+            <div className="surface-card p-5 rounded-xl border border-outline space-y-3 text-xs">
               <div className="flex items-center gap-2 text-on-surface font-bold">
                 <HelpCircle className="w-4 h-4 text-accent-primary" />
                 <span>Panduan Kategori TER PMK 168/2023</span>
@@ -525,7 +536,7 @@ export function Payroll() {
         return (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-300">
             {/* Left Column: Form Controls */}
-            <div className="lg:col-span-5 glass-panel p-6 rounded-3xl border border-outline space-y-5">
+            <div className="lg:col-span-5 surface-card p-5 rounded-xl border border-outline space-y-5">
               <div className="flex items-center gap-2.5 pb-3 border-b border-outline">
                 <div className="p-2 rounded-xl bg-accent-primary/10 text-accent-primary">
                   <ShieldCheck className="w-5 h-5" />
@@ -676,7 +687,7 @@ export function Payroll() {
                       </tr>
                     </tbody>
                     <tfoot>
-                      <tr className="border-t-2 border-outline font-bold text-xs bg-surface-container-low/50">
+                      <tr className="border-t-2 border-outline font-bold text-xs bg-surface-container-low">
                         <td className="py-3 font-sans uppercase">Total Iuran Bulanan:</td>
                         <td className="py-3 text-right font-mono text-accent-primary">
                           Rp {Math.round(baseSal * 0.1024).toLocaleString('id-ID')}
@@ -697,7 +708,7 @@ export function Payroll() {
       {/* Payroll Wizard Modal (Gusto Standard) */}
       {showWizardModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowWizardModal(false)} />
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowWizardModal(false)} />
           <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-lg p-6 md:p-8 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center gap-2">
@@ -799,7 +810,7 @@ export function Payroll() {
       {/* Modal Format Resmi Cetak Slip Gaji */}
       {payslipPreviewEmp && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setPayslipPreviewEmp(null)} />
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in" onClick={() => setPayslipPreviewEmp(null)} />
           <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-xl p-6 md:p-8 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-start border-b border-outline pb-4 mb-5">
               <div>
@@ -850,7 +861,7 @@ export function Payroll() {
 
               <div className="space-y-2">
                 <h4 className="font-bold text-xs uppercase tracking-wider text-psy-danger">Potongan Wajib</h4>
-                <div className="flex justify-between p-2 rounded-lg bg-psy-danger-bg/50 border border-psy-danger/20 text-psy-danger">
+                <div className="flex justify-between p-2 rounded-lg bg-psy-danger-bg border border-psy-danger/20 text-psy-danger">
                   <span>PPh 21 TER ({payslipPreviewEmp.terPercentage}%)</span>
                   <span className="font-mono font-bold">- Rp {Math.round(payslipPreviewEmp.taxDeduction).toLocaleString('id-ID')}</span>
                 </div>

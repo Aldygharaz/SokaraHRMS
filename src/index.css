@@ -9,128 +9,129 @@
 
 :root, html.light {
   /* =====================================================
-   * LIGHT MODE — "Linear × Stripe × Radix Slate"
-   * Referensi: Linear.app, Stripe Dashboard, Vercel Geist
-   * Semua teks diverifikasi WCAG AA+ (≥ 4.5:1)
+   * LIGHT MODE — Linear × Stripe × Apple HIG
+   * Calm, clean, high breathing room, WCAG AAA compliant
    * ===================================================== */
 
-  /* SURFACE HIERARCHY (Slate-tinted neutral, bukan biru susu) */
-  --color-bg: #F7F8FA;                  /* App bg — Radix Slate-2, kontras tajam vs card */
-  --color-surface-lowest: #FFFFFF;      /* Pure white — untuk card utama & sidebar item */
-  --color-surface-low: #F1F3F6;         /* Subtle bg — input, table row alt, hover area */
-  --color-surface: #FFFFFF;             /* Card / panel surface */
-  --color-surface-high: #E4E8EF;        /* Border area, chip bg */
-  --color-surface-highest: #CBD3DC;     /* Strong divider, table header bg */
+  /* SURFACE HIERARCHY */
+  --color-bg: #F8FAFC;                  /* Slate-50: Canvas netral bersih */
+  --color-surface-lowest: #FFFFFF;      /* Pure white untuk card & surface */
+  --color-surface-low: #F1F5F9;         /* Slate-100: Input & subtle hover */
+  --color-surface: #FFFFFF;             /* Card utama */
+  --color-surface-high: #E2E8F0;        /* Slate-200: Border halus */
+  --color-surface-highest: #CBD5E1;     /* Divider / table header */
   --color-surface-bright: #FFFFFF;
 
-  /* TEXT — Slate-900/600/500 (semua lulus WCAG AA+ di atas white) */
-  --color-on-surface: #0F172A;          /* Slate-900 — heading, label utama. Kontras 17:1 ✅ */
-  --color-on-surface-variant: #475569;  /* Slate-600 — body text, value sekunder. Kontras 7.5:1 ✅ */
+  /* TEXT HIERARCHY */
+  --color-on-surface: #0F172A;          /* Slate-900: Heading & label utama */
+  --color-on-surface-variant: #64748B;  /* Slate-500: Subteks & metadata */
 
-  /* BRAND / ACTION */
+  /* BRAND & ACCENT (Sokara Corporate Blue) */
   --color-amber-brand: #1B5FAE;
-  --color-amber-glow: rgba(27, 95, 174, 0.10);
-  --color-primary: #1B5FAE;            /* Corporate Blue — tombol primer, link */
+  --color-amber-glow: rgba(27, 95, 174, 0.08);
+  --color-primary: #1B5FAE;
   --color-on-primary: #FFFFFF;
-  --color-tertiary: 99 102 241;        /* Indigo-500 — accent tersier */
-  --color-error: #DC2626;              /* Red-600 */
-  --color-warning: #D97706;            /* Amber-600 */
-  --color-outline: #E2E6EC;            /* Border default halus (Linear-style) */
+  --color-tertiary: 99 102 241;
+  --color-error: #DC2626;
+  --color-warning: #D97706;
+  --color-outline: #E2E8F0;            /* 1px crisp subtle border */
 
-  /* ACCENT SYSTEM (tetap #1B5FAE agar konsisten dengan brand) */
   --accent-primary: 27 95 174;         /* RGB for #1B5FAE */
   --accent-primary-hover: #154E92;
-  --accent-primary-light: #EBF3FF;     /* Biru sangat pucat untuk chip/badge bg */
+  --accent-primary-light: #EFF6FF;
 
-  --color-secondary: #4A90D9;
+  --color-secondary: #3B82F6;
   --color-action: #1B5FAE;
-  --color-navy: #0F172A;               /* Dipakai untuk text primer */
-  --color-gradient-start: #EEF4FF;     /* Header panel gradient — biru sangat lembut */
+  --color-navy: #0F172A;
+  --color-gradient-start: #F8FAFC;
 
-  --color-semantic-warning: #B91C1C;   /* Red-700 (lebih gelap = lebih kontras di light) */
-  --color-semantic-positive: #047857;  /* Emerald-700 */
-  --color-semantic-neutral: 71 85 105; /* RGB Slate-600 */
+  --color-semantic-warning: #DC2626;
+  --color-semantic-positive: #059669;
+  --color-semantic-neutral: 100 116 139;
 
-  /* PSYCHOLOGICAL SEMANTIC (WCAG AA VERIFIED pada bg #FFFFFF) */
-  --color-psy-safe: #047857;           /* Emerald-700 — kontras 7.4:1 ✅ */
-  --color-psy-safe-bg: #ECFDF5;        /* Emerald-50 */
-  --color-psy-safe-text: #064E3B;      /* Emerald-900 */
-  --color-psy-danger: #B91C1C;         /* Red-700 — kontras 7.7:1 ✅ */
-  --color-psy-danger-bg: #FEF2F2;      /* Red-50 */
-  --color-psy-danger-text: #7F1D1D;    /* Red-900 */
-  --color-psy-warning: #B45309;        /* Amber-700 — kontras 6.6:1 ✅ */
-  --color-psy-warning-bg: #FFFBEB;     /* Amber-50 */
-  --color-psy-warning-text: #78350F;   /* Amber-900 */
-  --color-psy-info: #1D4ED8;           /* Blue-700 — kontras 7.1:1 ✅ */
-  --color-psy-info-bg: #EFF6FF;        /* Blue-50 */
-  --color-psy-info-text: #1E3A8A;      /* Blue-900 */
-  --color-psy-calm: #6D28D9;           /* Violet-700 — kontras 7.3:1 ✅ */
-  --color-psy-calm-bg: #F5F3FF;        /* Violet-50 */
-  --color-psy-calm-text: #4C1D95;      /* Violet-900 */
+  /* PSYCHOLOGICAL SEMANTIC */
+  --color-psy-safe: #059669;
+  --color-psy-safe-rgb: 5 150 105;
+  --color-psy-safe-bg: #ECFDF5;
+  --color-psy-safe-text: #065F46;
+  --color-psy-danger: #DC2626;
+  --color-psy-danger-rgb: 220 38 38;
+  --color-psy-danger-bg: #FEF2F2;
+  --color-psy-danger-text: #991B1B;
+  --color-psy-warning: #D97706;
+  --color-psy-warning-rgb: 217 119 6;
+  --color-psy-warning-bg: #FFFBEB;
+  --color-psy-warning-text: #92400E;
+  --color-psy-info: #2563EB;
+  --color-psy-info-bg: #EFF6FF;
+  --color-psy-info-text: #1E40AF;
+  --color-psy-calm: #7C3AED;
+  --color-psy-calm-bg: #F5F3FF;
+  --color-psy-calm-text: #5B21B6;
 
   --font-heading: 'Plus Jakarta Sans', -apple-system, sans-serif;
-  --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+  --font-display: 'Plus Jakarta Sans', sans-serif;
   --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
 
-  /* GLASS / CARD SYSTEM (Linear-style: crisp border, no heavy blur) */
   --glass-bg: #FFFFFF;
-  --glass-border: #E2E6EC;
-  --glass-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.04);
+  --glass-border: #E2E8F0;
+  --glass-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
 }
 
-/* ULTRA HIGH CONTRAST DARK THEME - DISCORD PALETTE */
+/* ULTRA CLEAN DARK THEME — OBSIDIAN PALETTE */
 html.dark {
-  --color-bg: #1E1F22;                  /* Base */
-  --color-surface-lowest: #2B2D31;      /* Sidebar */
-  --color-surface-low: #313338;         /* Canvas */
-  --color-surface: #383A40;             /* Elevated */
-  --color-surface-high: #404249;        /* Hover */
-  --color-surface-highest: #404249;
-  --color-surface-bright: #383A40;
+  --color-bg: #0B0F19;                  /* Slate-950 obsidian canvas */
+  --color-surface-lowest: #0F172A;      /* Slate-900 */
+  --color-surface-low: #131B2E;         /* Elevated surface */
+  --color-surface: #131B2E;             /* Card utama */
+  --color-surface-high: #1E293B;        /* Slate-800: Hover & borders */
+  --color-surface-highest: #334155;
+  --color-surface-bright: #1E293B;
 
-  --color-on-surface: #F2F3F5;          /* Primer Text */
-  --color-on-surface-variant: #DBDEE1;  /* Sekunder Text (Muted = #B5BAC1) */
+  --color-on-surface: #F8FAFC;          /* Slate-50: Teks primer */
+  --color-on-surface-variant: #94A3B8;  /* Slate-400: Teks sekunder */
 
-  --color-amber-brand: #0EA5E9;         /* Electric Blue as Brand Accent */
-  --color-amber-glow: rgba(14, 165, 233, 0.2);
-  --color-primary: #0EA5E9;             /* Electric Blue */
-  --color-on-primary: #FFFFFF;
-  --color-tertiary: 235 69 158;         /* RGB for #EB459E */
-  --color-error: #ED4245;               /* Red */
-  --color-warning: #FEE75C;             /* Yellow */
-  --color-outline: #3F4147;             /* Divider */
+  --color-amber-brand: #38BDF8;
+  --color-amber-glow: rgba(56, 189, 248, 0.15);
+  --color-primary: #38BDF8;
+  --color-on-primary: #0F172A;
+  --color-tertiary: 129 140 248;
+  --color-error: #EF4444;
+  --color-warning: #FBBF24;
+  --color-outline: #1E293B;
 
-  /* COLOR SYSTEM REVISION (Trust & Corporate Blue) */
-  --accent-primary: 9 132 227;         /* RGB for #0984E3 (Discord Electron Blue) */
-  --accent-primary-hover: #0097E6;     /* Dark Electron Blue */
-  --accent-primary-light: rgba(9, 132, 227, 0.25);
+  --accent-primary: 56 189 248;         /* RGB for Sky-400 */
+  --accent-primary-hover: #0EA5E9;
+  --accent-primary-light: rgba(56, 189, 248, 0.12);
   
-  --color-secondary: #0097E6;
-  --color-action: #0984E3;
-  --color-semantic-warning: #ED4245;  /* Discord Red */
-  --color-semantic-positive: #23A559; /* Discord Green */
-  --color-semantic-neutral: 181 186 193;  /* RGB for #B5BAC1 (Discord Muted) */
+  --color-secondary: #0EA5E9;
+  --color-action: #38BDF8;
+  --color-semantic-warning: #EF4444;
+  --color-semantic-positive: #10B981;
+  --color-semantic-neutral: 148 163 184;
 
-  /* PSYCHOLOGICAL SEMANTIC COLORS (DARK MODE - DISCORD PALETTE) */
-  --color-psy-safe: #23A559;          /* Discord Green */
-  --color-psy-safe-bg: rgba(35, 165, 89, 0.15);
-  --color-psy-safe-text: #57F287;
-  --color-psy-danger: #ED4245;        /* Discord Red */
-  --color-psy-danger-bg: rgba(237, 66, 69, 0.15);
-  --color-psy-danger-text: #F23F43;
-  --color-psy-warning: #F0B232;       /* Discord Warning/Yellow */
-  --color-psy-warning-bg: rgba(240, 178, 50, 0.15);
-  --color-psy-warning-text: #FEE75C;
-  --color-psy-info: #0EA5E9;          /* Electric Blue */
-  --color-psy-info-bg: rgba(14, 165, 233, 0.15);
+  --color-psy-safe: #10B981;
+  --color-psy-safe-rgb: 16 185 129;
+  --color-psy-safe-bg: rgba(16, 185, 129, 0.12);
+  --color-psy-safe-text: #34D399;
+  --color-psy-danger: #EF4444;
+  --color-psy-danger-rgb: 239 68 68;
+  --color-psy-danger-bg: rgba(239, 68, 68, 0.12);
+  --color-psy-danger-text: #F87171;
+  --color-psy-warning: #F59E0B;
+  --color-psy-warning-rgb: 245 158 11;
+  --color-psy-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-psy-warning-text: #FBBF24;
+  --color-psy-info: #38BDF8;
+  --color-psy-info-bg: rgba(56, 189, 248, 0.12);
   --color-psy-info-text: #7DD3FC;
-  --color-psy-calm: #EB459E;          /* Fuchsia */
-  --color-psy-calm-bg: rgba(235, 69, 158, 0.15);
-  --color-psy-calm-text: #F386C0;
+  --color-psy-calm: #A855F7;
+  --color-psy-calm-bg: rgba(168, 85, 247, 0.12);
+  --color-psy-calm-text: #C084FC;
 
-  --glass-bg: #313338;                  /* Canvas Layer */
-  --glass-border: #232428;              /* Input/Card Border */
-  --glass-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+  --glass-bg: #131B2E;
+  --glass-border: #1E293B;
+  --glass-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
 }
 
 * {
@@ -145,68 +146,60 @@ body {
   font-family: var(--font-body);
   min-height: 100vh;
   overflow-x: hidden;
-  line-height: 1.6;
+  line-height: 1.5;
   font-size: 14px;
   font-weight: 500;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 h1, h2, h3, h4, h5, h6, .font-heading {
   font-family: var(--font-heading);
-  letter-spacing: -0.02em;
-  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-weight: 700;
   color: var(--color-on-surface);
 }
 
 .font-display {
   font-family: var(--font-display);
-  letter-spacing: -0.03em;
-  font-weight: 800;
+  letter-spacing: -0.025em;
+  font-weight: 700;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-bg);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #94A3B8;
+  background: #CBD5E1;
   border-radius: 9999px;
 }
 html.dark ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: #334155;
 }
 
-/* High Contrast Cards with Crisp Borders & Soft Elevation */
-.glass-panel {
+/* Calm, Clean Surface Card System (Linear & Stripe Standard) */
+.glass-panel, .surface-card {
   position: relative;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  border-radius: 24px;
+  border-radius: 16px;
   overflow: hidden;
-  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.3s ease, border-color 0.3s ease;
-}
-html.dark .glass-panel {
-  background: rgba(30, 31, 34, 0.5); /* #1E1F22 with opacity */
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05), 0 8px 32px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.glass-panel:hover {
-  border-color: #94A3B8;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1);
+.glass-panel:hover, .surface-card:hover {
+  border-color: #CBD5E1;
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.05);
 }
-html.dark .glass-panel:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  background: rgba(43, 45, 49, 0.6);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1), 0 12px 48px rgba(0, 0, 0, 0.6);
+html.dark .glass-panel:hover, html.dark .surface-card:hover {
+  border-color: #334155;
+  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.4);
 }
 
 .hover-lift {

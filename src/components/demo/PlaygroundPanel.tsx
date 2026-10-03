@@ -52,7 +52,7 @@ export function PlaygroundPanel() {
       {/* Panel */}
       <div 
         className={cn(
-          "fixed top-4 bottom-4 right-4 w-[360px] bg-surface/90 backdrop-blur-xl border border-outline rounded-3xl shadow-2xl z-50 flex flex-col overflow-hidden transition-transform duration-500 ease-out",
+          "fixed top-4 bottom-4 right-4 w-[360px] bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border border-outline rounded-3xl shadow-2xl z-50 flex flex-col overflow-hidden transition-transform duration-500 ease-out",
           isOpen ? "translate-x-0" : "translate-x-[120%]"
         )}
       >

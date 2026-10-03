@@ -32,7 +32,7 @@ export function SlideOver({ isOpen, onClose, title, children, width = "max-w-md"
       {/* Slide-over panel */}
       <div 
         className={cn(
-          "relative w-full bg-surface-container-lowest h-full flex flex-col shadow-2xl border-l border-outline/50",
+          "relative w-full bg-surface-container-lowest h-full flex flex-col shadow-2xl border-l border-outline",
           "animate-in slide-in-from-right duration-300 ease-out",
           width
         )}

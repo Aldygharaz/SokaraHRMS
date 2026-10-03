@@ -12,7 +12,7 @@ export function BottomNav() {
   ]
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-xl border-t border-outline pb-safe pt-2 px-2 shadow-[0_-8px_20px_rgba(0,0,0,0.05)] dark:shadow-none">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-outline pb-safe pt-2 px-2 shadow-[0_-8px_20px_rgba(0,0,0,0.05)] dark:shadow-none">
       <nav className="flex items-center justify-around">
         {navItems.map((item) => (
           <NavLink

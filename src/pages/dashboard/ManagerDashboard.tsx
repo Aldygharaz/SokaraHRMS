@@ -1,12 +1,10 @@
 import { useHRStore } from '@/store/useHRStore'
-import { Users, BrainCircuit, AlertTriangle, Activity, Sparkles, Clock, DollarSign, Flame, UserCheck, TrendingUp, Shield, Info, ShieldCheck, Filter, Building2, ArrowRight } from 'lucide-react'
-import { TiltCard } from '@/components/motion/TiltCard'
-import { Sparkline } from '@/components/ui/Sparkline'
+import { Users, BrainCircuit, AlertTriangle, Clock, DollarSign, Flame, UserCheck, TrendingUp, Shield, ShieldCheck, Filter, Building2, ArrowRight, Sparkles, CheckCircle2, Zap, Coffee } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMemo, useState, useEffect } from 'react'
 import { sound } from '@/lib/sound'
 import { useNavigate } from 'react-router-dom'
-import { Tooltip } from '@/components/ui/Tooltip'
+import { Tooltip, InfoTooltip } from '@/components/ui/Tooltip'
 import { BRANCH_PROFILES } from '@/lib/branches'
 import { cn, timeAgo } from '@/lib/utils'
 
@@ -201,7 +199,6 @@ export function ManagerDashboard() {
   // Rush hour detection
   const currentHour = now.getHours()
   const isRushHour = (currentHour >= 11 && currentHour < 14) || (currentHour >= 17 && currentHour < 20)
-  const nextRushHour = currentHour < 12 ? '12:00 - 14:00' : currentHour < 18 ? '18:00 - 20:00' : 'Besok 12:00'
 
   const urgentNotes = handoverNotes.filter(n => n.priority === 'urgent')
 
@@ -210,59 +207,65 @@ export function ManagerDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Real-time Operational Barometer Bar */}
-      <div className="glass-panel p-5 rounded-3xl border border-outline bg-gradient-to-r from-surface to-surface-container flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-psy-safe/10 border border-psy-safe/30 flex items-center justify-center text-psy-safe">
-            <Activity className="w-5 h-5 animate-pulse" />
+      {/* Standardized Clean Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-outline">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl md:text-2xl font-bold text-on-surface tracking-tight">
+              Dashboard Operasional
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold border border-emerald-500/20">
+              {currentBranch.name} • {currentBranch.status}
+            </span>
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-sm text-on-surface font-display">Operasional {currentBranch.name}</h3>
-              <Tooltip content={`Status live cabang: ${currentBranch.status}. Target staf: ${currentBranch.staffTarget}`}>
-                <span className="px-2 py-0.5 rounded-full bg-psy-safe-bg text-psy-safe-text text-[10px] font-bold uppercase font-mono cursor-help">
-                  {currentBranch.status}
-                </span>
-              </Tooltip>
-            </div>
-            <p className="text-xs text-on-surface-variant mt-0.5">
-              Shift Aktif: <strong className="text-on-surface">
-                {activeShiftName !== 'Tidak Ada Shift' ? `Shift ${activeShiftName}` : 'Di Luar Jam Operasional'}
-              </strong> • {onDutyEmployees.length} staf bertugas di lantai kedai • <span className="font-mono text-[10px] opacity-70">{currentBranch.address}</span>
-            </p>
-          </div>
+          <p className="text-xs text-on-surface-variant mt-1">
+            Monitoring staf aktif di lantai, rasio biaya tenaga kerja, dan kesehatan operasional kedai.
+          </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
-          <Tooltip content="Hitung mundur sisa waktu durasi shift operasional aktif saat ini">
-            <div className="p-2.5 rounded-xl bg-surface-container-lowest border border-outline flex items-center gap-2 cursor-help">
-              <Clock className="w-4 h-4 text-accent-primary" />
-              <span>
-                {activeShiftName !== 'Tidak Ada Shift'
-                  ? <>Shift {activeShiftName}: <strong className="text-on-surface">Sisa {remainingLabel}</strong></>
-                  : <strong className="text-on-surface-variant">Semua Shift Selesai</strong>
-                }
-              </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Active Shift Indicator */}
+          <Tooltip
+            title="Shift Operasional Berjalan"
+            badge={activeShiftName !== 'Tidak Ada Shift' ? "Sedang Berjalan" : "Tutup"}
+            description={`Shift yang aktif saat ini di cabang ${currentBranch.name}. Waktu tersisa hingga rotasi shift: ${remainingLabel}.`}
+          >
+            <div className="px-3 py-1.5 rounded-lg bg-surface-low border border-outline text-xs flex items-center gap-2 cursor-help">
+              <Clock className="w-3.5 h-3.5 text-accent-primary" />
+              <span className="text-on-surface-variant">Shift:</span>
+              <strong className="text-on-surface font-semibold">
+                {activeShiftName !== 'Tidak Ada Shift' ? `${activeShiftName} (Sisa ${remainingLabel})` : 'Selesai'}
+              </strong>
             </div>
           </Tooltip>
 
-          <Tooltip content={isRushHour ? 'Saat ini jam sibuk kedai sedang aktif. Pastikan semua barista & kasir di posisi.' : 'Estimasi jam sibuk berikutnya berdasarkan pola transaksi kedai.'}>
-            <div className={`p-2.5 rounded-xl border flex items-center gap-2 cursor-help ${isRushHour ? 'bg-error/10 border-error/30' : 'bg-surface-container-lowest border-outline'}`}>
-              <Flame className={`w-4 h-4 ${isRushHour ? 'text-error animate-pulse' : 'text-semantic-warning'}`} />
-              <span>
-                {isRushHour ? <><strong className="text-error">Rush Hour AKTIF!</strong></> : <>Rush Hour: <strong className="text-semantic-warning">{nextRushHour}</strong></>}
-              </span>
-            </div>
-          </Tooltip>
+          {/* Rush Hour Badge */}
+          {isRushHour && (
+            <Tooltip
+              title="Jam Sibuk Kedai (Rush Hour)"
+              badge="Peak Hours F&B"
+              description="Rentang waktu lonjakan pesanan tertinggi pelanggan (11:00-14:00 & 17:00-20:00). Pastikan seluruh kru stasiun berada di posisi masing-masing."
+            >
+              <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5 cursor-help">
+                <Flame className="w-3.5 h-3.5" />
+                <span>Rush Hour Aktif</span>
+              </div>
+            </Tooltip>
+          )}
 
+          {/* Urgent Note Alert */}
           {urgentNotes.length > 0 && (
-            <Tooltip content="Terdapat catatan serah terima dengan prioritas urgent yang butuh perhatian manajer">
+            <Tooltip
+              title="Catatan Serah Terima Mendesak"
+              badge="Prioritas Tinggi"
+              description="Terdapat catatan operasional penting antar-shift yang belum ditindaklanjuti. Klik untuk membuka panel catatan presensi."
+            >
               <button
                 onClick={() => { sound.playClick(); navigate('/attendance') }}
-                className="p-2.5 rounded-xl bg-semantic-warning/10 border border-semantic-warning/30 flex items-center gap-2 cursor-pointer hover:bg-semantic-warning/20 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-1.5 hover:bg-rose-500/20 transition-colors cursor-pointer"
               >
-                <AlertTriangle className="w-4 h-4 text-semantic-warning" />
-                <span className="text-semantic-warning font-bold">{urgentNotes.length} Catatan Urgent</span>
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>{urgentNotes.length} Catatan Urgent</span>
               </button>
             </Tooltip>
           )}
@@ -270,18 +273,18 @@ export function ManagerDashboard() {
       </div>
 
       {/* Multi-Branch Operational Command Center (Enterprise Matrix) */}
-      <div className="glass-panel p-6 rounded-3xl border border-outline space-y-4">
+      <div className="surface-card p-5 rounded-xl border border-outline space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="font-bold text-base text-on-surface font-display flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-accent-primary" />
+            <h3 className="font-bold text-sm text-on-surface flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-accent-primary" />
               Multi-Branch Command Center
             </h3>
             <p className="text-xs text-on-surface-variant">Monitoring komparatif 3 cabang real-time, rasio biaya tenaga kerja, dan peminjaman kru roaming</p>
           </div>
           <button
             onClick={() => { sound.playClick(); navigate('/approval') }}
-            className="px-3.5 py-1.5 rounded-xl bg-surface-container-high border border-outline text-xs font-bold text-accent-primary hover:bg-outline/40 transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
+            className="px-3.5 py-1.5 rounded-xl bg-surface-container-high border border-outline text-xs font-bold text-accent-primary hover:bg-surface-container-highest transition-all cursor-pointer flex items-center gap-1.5 self-start sm:self-auto"
           >
             <span>Bursa Kru Roaming</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -325,7 +328,7 @@ export function ManagerDashboard() {
                   <p className="text-[11px] text-on-surface-variant mt-1 font-mono">{profile.address}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-outline/50 text-xs">
+                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-outline text-xs">
                   <div className="p-2 rounded-xl bg-surface-container-lowest border border-outline">
                     <p className="text-[9px] text-on-surface-variant font-bold uppercase">Staf Terisi</p>
                     <p className="font-bold font-mono text-on-surface mt-0.5">{profile.staffTarget} Staf</p>
@@ -337,18 +340,24 @@ export function ManagerDashboard() {
                 </div>
 
                 {isSudirmanDeficit ? (
-                  <div className="p-2 rounded-xl bg-psy-warning-bg/50 border border-psy-warning/30 flex items-center justify-between text-[10px]">
-                    <span className="text-psy-warning-text font-bold">⚠️ Butuh +2 Kru Roaming</span>
+                  <div className="p-2 rounded-xl bg-psy-warning-bg border border-psy-warning/30 flex items-center justify-between text-[10px]">
+                    <span className="text-psy-warning-text font-bold inline-flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 text-psy-warning-text" /> Butuh +2 Kru Roaming
+                    </span>
                     <span className="font-mono text-accent-primary font-bold">+Rp 50k Saku</span>
                   </div>
                 ) : isKemangFestival ? (
                   <div className="p-2 rounded-xl bg-tertiary/10 border border-tertiary/30 flex items-center justify-between text-[10px]">
-                    <span className="text-tertiary font-bold">🎉 Event Art Bazaar Weekend</span>
+                    <span className="text-tertiary font-bold inline-flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-tertiary" /> Event Art Bazaar Weekend
+                    </span>
                     <span className="font-mono text-tertiary font-bold">Trafik 98%</span>
                   </div>
                 ) : (
-                  <div className="p-2 rounded-xl bg-psy-safe-bg/30 border border-psy-safe/30 flex items-center justify-between text-[10px]">
-                    <span className="text-psy-safe-text font-bold">✓ Operasional Optimal</span>
+                  <div className="p-2 rounded-xl bg-psy-safe-bg border border-psy-safe/30 flex items-center justify-between text-[10px]">
+                    <span className="text-psy-safe-text font-bold inline-flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-psy-safe-text" /> Operasional Optimal
+                    </span>
                     <span className="font-mono text-on-surface-variant">Labor 21%</span>
                   </div>
                 )}
@@ -359,146 +368,151 @@ export function ManagerDashboard() {
       </div>
 
       {/* 4 Core Metric KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Headcount */}
-        <TiltCard containerClassName="h-full" className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-outline hover:border-accent-primary/50 transition-colors shadow-sm">
-          <div className="flex items-start justify-between mb-6">
+        <div className="surface-card p-5 flex flex-col justify-between">
+          <div className="flex items-start justify-between mb-4">
             <div>
-              <div className="flex items-center gap-1">
-                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mb-1">Total Headcount Tim</p>
-                <Tooltip content="Total kapasitas tim yang terdaftar vs batas maksimum struktur organisasi kedai (20 staf).">
-                  <Info className="w-3.5 h-3.5 text-on-surface-variant cursor-help mb-1" />
-                </Tooltip>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[11px] text-on-surface-variant font-medium">Total Tim Terdaftar</p>
+                <InfoTooltip
+                  title="Kapasitas Karyawan Cabang"
+                  badge="Kuota 20 Staf"
+                  description="Jumlah total staf terdaftar di cabang aktif. Target kuota 20 staf disesuaikan dengan volume operasional 3 shift kedai."
+                />
               </div>
-              <h3 className="text-4xl font-bold text-on-surface mt-1 font-display flex items-end gap-3">
-                <span>{headcount} <span className="text-base text-on-surface-variant font-semibold">/ 20</span></span>
-                <div className="mb-2 opacity-50"><Sparkline data={[12, 14, 15, 15, 16, 18, headcount]} height={20} width={60} color="#0984E3" strokeWidth={2}/></div>
+              <h3 className="text-2xl font-bold text-on-surface mt-1 font-mono flex items-baseline gap-1.5">
+                <span>{headcount}</span>
+                <span className="text-xs text-on-surface-variant font-normal">/ 20 staf</span>
               </h3>
             </div>
-            <div className="p-3.5 bg-accent-primary/10 rounded-2xl text-accent-primary">
-              <Users className="w-6 h-6" />
+            <div className="p-2 bg-sky-500/10 rounded-lg text-sky-500">
+              <Users className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <div className="flex justify-between text-xs text-on-surface-variant font-semibold mb-2">
+            <div className="flex justify-between text-[11px] text-on-surface-variant mb-1.5 font-medium">
               <span>Kapasitas Roster</span>
-              <span className="text-accent-primary font-bold">{Math.round((headcount / 20) * 100)}% Terisi</span>
+              <span className="font-semibold text-on-surface">{Math.round((headcount / 20) * 100)}%</span>
             </div>
-            <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
-              <div className="bg-gradient-to-r from-accent-primary to-primary h-full rounded-full transition-all duration-1000 ease-out" style={{ width: `${(headcount / 20) * 100}%` }} />
+            <div className="w-full bg-surface-low h-1.5 rounded-full overflow-hidden">
+              <div className="bg-accent-primary h-full rounded-full transition-all" style={{ width: `${(headcount / 20) * 100}%` }} />
             </div>
           </div>
-        </TiltCard>
+        </div>
 
         {/* Labor Cost Barometer */}
-        <TiltCard containerClassName="h-full" className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-outline hover:border-tertiary/50 transition-colors shadow-sm">
-          <div className="flex items-start justify-between mb-6">
+        <div className="surface-card p-5 flex flex-col justify-between">
+          <div className="flex items-start justify-between mb-4">
             <div>
-              <div className="flex items-center gap-1">
-                <p className="text-xs text-on-surface-variant font-bold uppercase tracking-wider mb-1">Labor Cost Ratio</p>
-                <Tooltip content="Rasio biaya tenaga kerja mingguan terhadap proyeksi omzet kedai (Standar F&B: <25% Sehat, 25-35% Waspada, >35% Kritis).">
-                  <Info className="w-3.5 h-3.5 text-on-surface-variant cursor-help mb-1" />
-                </Tooltip>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[11px] text-on-surface-variant font-medium">Labor Cost Ratio</p>
+                <InfoTooltip
+                  title="Rasio Biaya Tenaga Kerja"
+                  badge="Target < 25%"
+                  description="Persentase biaya upah terhadap proyeksi omset mingguan kedai. Benchmark F&B: < 25% Sehat, 25-35% Waspada, > 35% Kritis."
+                />
               </div>
-              <h3 className="text-3xl font-bold text-on-surface mt-1 font-display flex flex-wrap items-end gap-3">
-                <span>{laborCostRatioPercent}%</span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-md font-mono mb-1 ${laborRatioColor} ${laborRatioBg}`}>
+              <div className="flex items-baseline gap-2 mt-1">
+                <h3 className="text-2xl font-bold text-on-surface font-mono">{laborCostRatioPercent}%</h3>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md font-mono ${laborRatioColor} ${laborRatioBg}`}>
                   {laborRatioStatus}
                 </span>
-                <div className="mb-2 opacity-50"><Sparkline data={[21, 23, 20, 24, 25, 22, laborCostRatioPercent]} height={20} width={60} color={laborCostRatioPercent < 25 ? "#00b894" : "#fdcb6e"} strokeWidth={2}/></div>
-              </h3>
+              </div>
             </div>
-            <div className="p-3.5 bg-tertiary/10 rounded-2xl text-tertiary">
-              <DollarSign className="w-6 h-6" />
+            <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500">
+              <DollarSign className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <div className="flex justify-between text-xs text-on-surface-variant font-semibold mb-2">
+            <div className="flex justify-between text-[11px] text-on-surface-variant mb-1.5 font-medium">
               <span>Estimasi Gaji Minggu Ini</span>
-              <span className="text-on-surface font-mono font-bold">Rp {Math.round(weeklyLaborCost).toLocaleString('id-ID')}</span>
+              <span className="font-semibold text-on-surface font-mono">Rp {Math.round(weeklyLaborCost).toLocaleString('id-ID')}</span>
             </div>
-            <div className="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+            <div className="w-full bg-surface-low h-1.5 rounded-full overflow-hidden">
               <div
-                className={`h-full rounded-full transition-all duration-1000 ease-out ${laborCostRatioPercent < 25 ? 'bg-gradient-to-r from-psy-safe to-psy-safe/60' : laborCostRatioPercent < 35 ? 'bg-gradient-to-r from-semantic-warning to-semantic-warning/60' : 'bg-gradient-to-r from-error to-error/60'}`}
+                className={`h-full rounded-full transition-all ${laborCostRatioPercent < 25 ? 'bg-emerald-500' : laborCostRatioPercent < 35 ? 'bg-amber-500' : 'bg-rose-500'}`}
                 style={{ width: `${Math.min(laborCostRatioPercent * 2, 100)}%` }}
               />
             </div>
           </div>
-        </TiltCard>
+        </div>
 
         {/* Attrition Risk */}
-        <TiltCard containerClassName="h-full" className="glass-panel rounded-3xl p-6 flex flex-col justify-between border border-error/20 bg-error/5 hover:border-error/40 transition-colors shadow-sm">
-          <div className="flex items-start justify-between mb-4">
+        <div className="surface-card p-5 flex flex-col justify-between">
+          <div className="flex items-start justify-between mb-3">
             <div>
-              <div className="flex items-center gap-1">
-                <p className="text-xs text-error font-bold uppercase tracking-wider mb-1">Attrition / Fatigue Risk</p>
-                <Tooltip content="Pencegahan risiko kelelahan dan burnout berdasarkan akumulasi shift malam dan lembur beruntun.">
-                  <Info className="w-3.5 h-3.5 text-error cursor-help mb-1" />
-                </Tooltip>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[11px] text-on-surface-variant font-medium">Risiko Kelelahan (Fatigue)</p>
+                <InfoTooltip
+                  title="Audit Kelelahan Staf"
+                  badge="Anti-Burnout AI"
+                  description="Dihitung dari frekuensi shift malam berturut-turut, akumulasi jam lembur bulanan, dan jeda istirahat antar shift kurang dari 8 jam."
+                />
               </div>
-              <h3 className="text-4xl font-bold text-error mt-1 font-display flex items-end gap-3">
-                <span>{highRiskEmployees.length} <span className="text-base text-error/70 font-semibold">Staf</span></span>
-                <div className="mb-2 opacity-60"><Sparkline data={[1, 0, 2, 1, 3, 2, highRiskEmployees.length]} height={20} width={60} color="#ff7675" strokeWidth={2}/></div>
+              <h3 className="text-2xl font-bold text-on-surface mt-1 font-mono flex items-baseline gap-1.5">
+                <span className={highRiskEmployees.length > 0 ? "text-rose-500" : ""}>{highRiskEmployees.length}</span>
+                <span className="text-xs text-on-surface-variant font-normal">staf berisiko</span>
               </h3>
             </div>
-            <div className="p-3.5 bg-error/10 rounded-2xl text-error">
-              <AlertTriangle className="w-6 h-6" />
+            <div className="p-2 bg-rose-500/10 rounded-lg text-rose-500">
+              <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-on-surface-variant mb-2">Risiko Tinggi Kelelahan:</p>
-            <div className="space-y-2">
-              {highRiskEmployees.slice(0, 2).map(e => (
-                <Tooltip key={e.id} content={`Penyebab: ${(e.attritionFactors || []).join(', ')} • Skor Risiko: ${e.attritionRisk}%`}>
-                  <div className="flex items-center gap-3 p-2 bg-surface rounded-xl border border-error/10 shadow-sm cursor-help w-full">
-                    <img src={e.avatar} alt={e.name} className="w-8 h-8 rounded-full object-cover border border-error/20" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold text-on-surface truncate">{e.name}</p>
-                      <p className="text-[10px] text-error truncate">{e.attritionFactors?.[0]}</p>
-                    </div>
-                    <span className="text-[10px] font-mono font-bold text-error bg-error/10 px-2 py-1 rounded-lg">{e.attritionRisk}%</span>
+            <div className="space-y-1.5">
+              {highRiskEmployees.slice(0, 1).map(e => (
+                <div key={e.id} className="flex items-center justify-between p-2 rounded-lg bg-surface-low text-xs border border-outline">
+                  <div className="flex items-center gap-2 truncate">
+                    <img src={e.avatar} alt={e.name} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                    <span className="font-medium text-on-surface truncate">{e.name}</span>
                   </div>
-                </Tooltip>
+                  <span className="text-[10px] font-mono text-rose-500 font-bold shrink-0">{e.attritionRisk}%</span>
+                </div>
               ))}
               {highRiskEmployees.length === 0 && (
-                <div className="text-center py-2 text-xs text-psy-safe-text font-bold">Semua kru berada dalam kondisi aman.</div>
+                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium py-1">
+                  Semua kru dalam kondisi bugar.
+                </div>
               )}
             </div>
           </div>
-        </TiltCard>
+        </div>
 
-        {/* AI Auto-Balance */}
-        <TiltCard containerClassName="h-full" className="glass-panel rounded-3xl p-6 border-2 border-accent-primary/20 bg-gradient-to-br from-accent-primary/5 to-surface-container flex flex-col justify-between hover:border-accent-primary/40 transition-all shadow-sm">
+        {/* AI Optimization Card */}
+        <div className="surface-card p-5 flex flex-col justify-between bg-sky-50/40 dark:bg-sky-950/20 border-sky-200 dark:border-sky-900/50">
           <div>
-            <div className="flex items-center gap-2 mb-3 bg-surface w-fit px-3 py-1 rounded-full text-[11px] text-accent-primary font-bold shadow-sm border border-accent-primary/10">
-              <span className="w-2 h-2 rounded-full bg-accent-primary animate-pulse" />
-              <BrainCircuit className="w-4 h-4" />
-              <span>AI Anomaly Insight</span>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-accent-primary uppercase tracking-wider font-mono">
+                  Smart Recommendation
+                </span>
+                <InfoTooltip
+                  title="Rekomendasi Cerdas AI"
+                  badge="Efisiensi Biaya"
+                  description="Algoritma mendeteksi peluang penghematan biaya lembur melalui redistribusi shift malam ke staf yang lebih bugar."
+                />
+              </div>
+              <BrainCircuit className="w-4 h-4 text-accent-primary" />
             </div>
-            <p className="text-xs text-on-surface leading-relaxed mb-3 font-medium">
-              Biaya lembur terdeteksi naik <strong className="text-semantic-warning font-bold">23%</strong> minggu ini akibat shift malam beruntun.
+            <p className="text-xs text-on-surface leading-snug font-medium mb-3">
+              Seimbangkan shift malam untuk potensi penghematan <strong className="text-on-surface">Rp 975.000</strong>.
             </p>
-            <div className="p-3 rounded-2xl bg-surface border border-accent-primary/20 text-[11px] text-on-surface-variant shadow-sm mb-3">
-              <p className="leading-relaxed"><Sparkles className="w-3.5 h-3.5 inline-block text-accent-primary mr-1" /> Rekomendasi: Seimbangkan shift malam untuk hemat estimasi <strong>Rp 975.000</strong>.</p>
-            </div>
           </div>
-          <Tooltip content="AI otomatis membagi ulang shift lembur staf berisiko ke staf yang memiliki kapasitas jam kerja">
-            <button
-              onClick={() => {
-                sound.playSuccess()
-                autoBalanceShifts()
-                addAuditLog({ user: 'System AI', action: 'Shift Auto-Balance', detail: 'Mengalihkan shift lembur untuk staf risiko tinggi' })
-                toast.success("Shift berhasil diseimbangkan secara otomatis!", {
-                  description: "Estimasi penghematan: Rp 975.000",
-                  action: { label: 'Lihat Kalender', onClick: () => navigate('/calendar') }
-                })
-              }}
-              className="w-full py-2.5 px-4 rounded-xl bg-accent-primary text-white hover:bg-accent-primary/90 hover:shadow-lg font-bold text-xs transition-all font-display cursor-pointer"
-            >
-              Auto-Balance Shift AI
-            </button>
-          </Tooltip>
-        </TiltCard>
+          <button
+            onClick={() => {
+              sound.playSuccess()
+              autoBalanceShifts()
+              addAuditLog({ user: 'System AI', action: 'Shift Auto-Balance', detail: 'Mengalihkan shift lembur untuk staf risiko tinggi' })
+              toast.success("Shift berhasil diseimbangkan!", {
+                action: { label: 'Lihat Kalender', onClick: () => navigate('/calendar') }
+              })
+            }}
+            className="w-full py-2 px-3 rounded-lg bg-accent-primary hover:bg-accent-primary/90 text-white font-semibold text-xs transition-colors cursor-pointer text-center"
+          >
+            Auto-Balance Shift
+          </button>
+        </div>
       </div>
 
       {/* Live Who's On Floor Matrix (Deputy / 7shifts Standard) */}
@@ -526,7 +540,7 @@ export function ManagerDashboard() {
           </div>
 
           {/* Filter Preset Chips */}
-          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-outline/50 text-xs">
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-outline text-xs">
             <span className="text-on-surface-variant font-bold text-[11px] mr-1 flex items-center gap-1">
               <Filter className="w-3 h-3 text-accent-primary" /> Filter:
             </span>
@@ -593,8 +607,20 @@ export function ManagerDashboard() {
                         {/* Readiness Mood Badge */}
                         {mood && (
                           <div className="flex items-center gap-1 mt-1">
-                            <span className="px-1.5 py-0.5 rounded-md bg-accent-primary/10 text-accent-primary text-[9px] font-bold font-mono">
-                              {mood.mood === 'ready' ? '⚡ Siap Tempur' : mood.mood === 'good' ? '✓ Bugar' : '☕ Butuh Kopi'}
+                            <span className="px-1.5 py-0.5 rounded-md bg-accent-primary/10 text-accent-primary text-[9px] font-bold font-mono inline-flex items-center gap-1">
+                              {mood.mood === 'ready' ? (
+                                <>
+                                  <Zap className="w-2.5 h-2.5 text-amber-400" /> Siap Tempur
+                                </>
+                              ) : mood.mood === 'good' ? (
+                                <>
+                                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" /> Bugar
+                                </>
+                              ) : (
+                                <>
+                                  <Coffee className="w-2.5 h-2.5 text-orange-400" /> Butuh Kopi
+                                </>
+                              )}
                             </span>
                           </div>
                         )}
@@ -666,9 +692,9 @@ export function ManagerDashboard() {
                   </div>
                   <p className="text-on-surface-variant text-[9px] mt-0.5 line-clamp-1">{rec.notes || 'Istirahat & K3 terkonfirmasi aman.'}</p>
                   <div className="flex items-center gap-1.5 mt-1.5 text-[8px] font-mono text-psy-safe-text">
-                    <span>✓ Break 1 Jam</span>
+                    <span className="flex items-center gap-0.5"><CheckCircle2 className="w-2.5 h-2.5" /> Break 1 Jam</span>
                     <span>•</span>
-                    <span>✓ K3 Fit</span>
+                    <span className="flex items-center gap-0.5"><CheckCircle2 className="w-2.5 h-2.5" /> K3 Fit</span>
                   </div>
                 </div>
               ))}

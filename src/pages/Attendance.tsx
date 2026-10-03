@@ -1,5 +1,4 @@
 import { useHRStore } from '@/store/useHRStore'
-import { TiltCard } from '@/components/motion/TiltCard'
 import { Clock, Download, CheckCircle2, Camera, Navigation, Check, X, Compass, Coffee, Zap, BatteryLow, MessageSquarePlus, Send, AlertTriangle, Play, Pause, Activity, Copy, ClipboardCheck, CheckSquare, Square, ShieldCheck, FileCheck2, MapPin, BarChart3, FileSpreadsheet } from 'lucide-react'
 import { cn, timeAgo } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -15,7 +14,7 @@ function parseWibToDate(timeStr: string) {
 }
 import { sound } from '@/lib/sound'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { Tooltip } from '@/components/ui/Tooltip'
+import { Tooltip, InfoTooltip } from '@/components/ui/Tooltip'
 import { BRANCH_PROFILES } from '@/lib/branches'
 
 const MOOD_DESCRIPTIONS: Record<string, string> = {
@@ -224,36 +223,34 @@ export function Attendance() {
   }, [attendances])
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Header Panel */}
-      <div className="glass-panel spotlight-card p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 border border-outline">
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Standardized Clean Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-outline">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-2xl font-bold text-on-surface font-display">Presensi & Shift Operations</h2>
-            <Tooltip content={activeRole === 'manager' ? 'Mode manajer untuk memonitor kehadiran seluruh staf secara live.' : 'Portal mandiri karyawan untuk check-in dan serah terima shift.'}>
-              <span className="px-3 py-1 rounded-full bg-surface-container-high text-semantic-neutral text-xs font-bold uppercase tracking-wider border border-semantic-neutral/30 font-mono cursor-help">
-                {activeRole === 'manager' ? 'Manager Command Center' : 'Employee Self-Service'}
-              </span>
-            </Tooltip>
+            <h1 className="text-xl md:text-2xl font-bold text-on-surface tracking-tight">
+              Presensi & Shift Operations
+            </h1>
+            <span className="px-2 py-0.5 rounded-full bg-slate-500/10 text-on-surface-variant text-[10px] font-semibold border border-outline font-mono">
+              {activeRole === 'manager' ? 'Command Center' : 'Self-Service'}
+            </span>
           </div>
-          <p className="text-xs text-on-surface-variant mt-1 font-medium">
-            Verifikasi kehadiran real-time berbasis GPS Geofencing radius 100m {currentBranch.name} dan digital shift handover.
+          <p className="text-xs text-on-surface-variant mt-1">
+            Verifikasi kehadiran berbasis GPS Geofencing radius 100m {currentBranch.name} dan checklist SOP.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {activeRole === 'manager' && (
-            <Tooltip content="Ekspor rekapitulasi presensi seluruh staf ke file Excel/CSV">
-              <button 
-                onClick={() => {
-                  sound.playClick()
-                  toast.success("Laporan kehadiran berhasil di-export ke Excel (XLSX).")
-                }}
-                className="bg-surface-container-high text-on-surface hover:text-accent-primary border border-surface-container-highest text-xs font-bold py-2 px-3.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <Download className="w-4 h-4 text-accent-primary" /> Export Rekap CSV/XLSX
-              </button>
-            </Tooltip>
+            <button 
+              onClick={() => {
+                sound.playClick()
+                handleExportRekapCSV()
+              }}
+              className="bg-surface-low hover:bg-surface-high text-on-surface border border-outline text-xs font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-accent-primary" /> Ekspor Rekap CSV
+            </button>
           )}
         </div>
       </div>
@@ -261,7 +258,7 @@ export function Attendance() {
       {/* Employee Quick Clock-In Widget */}
       {activeRole === 'karyawan' && activeEmployee && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 glass-panel p-6 rounded-3xl border border-outline relative overflow-hidden bg-gradient-to-br from-surface to-surface-container">
+          <div className="lg:col-span-2 surface-card p-6 border border-outline">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
               <div className="flex items-center gap-3">
                 <img src={activeEmployee.avatar} alt={activeEmployee.name} className="w-12 h-12 rounded-2xl object-cover border border-outline" />
@@ -324,12 +321,18 @@ export function Attendance() {
                 <span className="text-on-surface-variant flex items-center gap-1.5">
                   <Navigation className="w-4 h-4 text-accent-primary" /> Status GPS Geofencing
                 </span>
-                <Tooltip content={mockDistance <= 100 ? 'Posisi Anda valid berada di dalam batas toleransi radius 100m Kedai Senopati.' : 'Peringatan: Posisi Anda di luar batas 100m dari kedai! Clock-in akan ditandai diluar area.'}>
+                <Tooltip 
+                  title="Verifikasi Lokasi GPS"
+                  badge={mockDistance <= 100 ? "Valid (Haversine)" : "Di Luar Area"}
+                  description={mockDistance <= 100 
+                    ? `Posisi koordinat Anda valid berada di dalam batas toleransi radius 100m Kedai Senopati HQ (${mockDistance}m).` 
+                    : `Peringatan: Posisi Anda di luar batas 100m (${mockDistance}m). Presensi masuk akan ditandai di luar lokasi operasional.`}
+                >
                   <span className={cn(
                     "px-2.5 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 cursor-help",
-                    mockDistance <= 100 ? "bg-psy-safe-bg text-psy-safe-text" : "bg-psy-danger-bg text-psy-danger-text"
+                    mockDistance <= 100 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
                   )}>
-                    <span className={cn("w-1.5 h-1.5 rounded-full animate-ping", mockDistance <= 100 ? "bg-psy-safe" : "bg-psy-danger")} />
+                    <span className={cn("w-1.5 h-1.5 rounded-full", mockDistance <= 100 ? "bg-emerald-500" : "bg-rose-500")} />
                     {mockDistance <= 100 ? `Dalam Radius HQ (${mockDistance}m)` : `Di Luar Radius (${mockDistance}m)`}
                   </span>
                 </Tooltip>
@@ -338,7 +341,7 @@ export function Attendance() {
               <div className="flex items-center justify-between text-[11px] text-on-surface-variant">
                 <div className="flex items-center gap-1.5">
                   <span>Titik: Kedai Senopati HQ (-6.2289, 106.8021)</span>
-                  <Tooltip content="Salin koordinat GPS Senopati HQ">
+                  <Tooltip title="Salin Koordinat" description="Salin titik latitude dan longitude resmi Kedai Senopati HQ ke clipboard.">
                     <button
                       type="button"
                       onClick={() => {
@@ -352,7 +355,7 @@ export function Attendance() {
                     </button>
                   </Tooltip>
                 </div>
-                <Tooltip content="Ubah simulasi jarak GPS untuk menguji respon validasi geofence">
+                <Tooltip title="Simulasi Uji GPS" description="Mengubah simulasi jarak koordinat perangkat untuk memverifikasi proteksi radius 100 meter.">
                   <button 
                     onClick={() => {
                       sound.playClick()
@@ -360,7 +363,7 @@ export function Attendance() {
                     }}
                     className="text-accent-primary hover:underline font-semibold cursor-pointer"
                   >
-                    Simulasi Jarak: {mockDistance <= 50 ? 'Jauhkan (1.5km)' : 'Dekatkan (25m)'}
+                    Simulasi: {mockDistance <= 50 ? 'Jauhkan (1.5km)' : 'Dekatkan (25m)'}
                   </button>
                 </Tooltip>
               </div>
@@ -369,27 +372,37 @@ export function Attendance() {
             {/* Clock-In / Out & Break Actions */}
             <div className="flex flex-col sm:flex-row gap-3">
               {!myAttendance || myAttendance.timeIn === '--:--' ? (
-                <Tooltip content="Lakukan presensi masuk shift dan rekam koordinat GPS saat ini">
+                <Tooltip 
+                  title="Presensi Masuk Shift"
+                  badge="GPS Terverifikasi"
+                  description="Merekam waktu masuk resmi dan titik koordinat GPS ke buku besar presensi kedai."
+                >
                   <button
                     onClick={handleClockIn}
-                    className="flex-1 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-accent-primary to-primary text-white font-bold text-sm flex items-center justify-center gap-2 hover:shadow-[0_0_24px_rgba(27,95,174,0.4)] transition-all active:scale-95 cursor-pointer font-display w-full"
+                    className="flex-1 py-2.5 px-4 rounded-lg bg-accent-primary hover:bg-accent-primary/90 text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs w-full"
                   >
                     <Camera className="w-4 h-4" /> Masuk Shift (Clock-In)
                   </button>
                 </Tooltip>
               ) : (
-                <div className="flex-1 p-3 rounded-2xl bg-psy-safe-bg border border-psy-safe/30 flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-psy-safe shrink-0" />
+                <div className="flex-1 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <div>
-                    <p className="text-xs font-bold text-psy-safe-text">Sudah Masuk ({myAttendance.timeIn} WIB)</p>
-                    <p className="text-[10px] text-on-surface-variant">{myAttendance.geofence}</p>
+                    <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">Sudah Masuk ({myAttendance.timeIn} WIB)</p>
+                    <p className="text-[10px] text-on-surface-variant font-mono">{myAttendance.geofence}</p>
                   </div>
                 </div>
               )}
 
               {/* Break Timer Button */}
               {myAttendance && myAttendance.timeIn !== '--:--' && myAttendance.timeOut === '--:--' && (
-                <Tooltip content={breakActive ? 'Jeda penghitungan waktu istirahat' : 'Mulai istirahat kerja 30 menit sesuai regulasi ketenagakerjaan'}>
+                <Tooltip 
+                  title="Hak Istirahat Kerja"
+                  badge="30 Menit"
+                  description={breakActive 
+                    ? "Jeda waktu istirahat sedang berjalan. Penghitungan jam shift aktif sementara ditangguhkan." 
+                    : "Mulai hak istirahat resmi 30 menit sesuai ketentuan jam kerja operasional."}
+                >
                   <button
                     onClick={() => {
                       sound.playClick()
@@ -397,35 +410,38 @@ export function Attendance() {
                       toast.info(breakActive ? "Waktu istirahat dijeda." : "Waktu istirahat 30 menit dimulai!")
                     }}
                     className={cn(
-                      "flex-1 py-3.5 px-4 rounded-2xl border font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer font-display",
+                      "flex-1 py-2.5 px-4 rounded-lg border font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer",
                       breakActive 
-                        ? "bg-psy-warning-bg border-psy-warning/40 text-psy-warning-text animate-pulse" 
-                        : "bg-surface-container-high border-outline hover:bg-surface-container text-on-surface"
+                        ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400" 
+                        : "bg-surface-low hover:bg-surface-high border-outline text-on-surface"
                     )}
                   >
-                    {breakActive ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 text-accent-primary" />}
-                    <span>{breakActive ? `Sedang Istirahat (${formatBreakTimer(breakSecondsLeft)})` : 'Mulai Istirahat (30m)'}</span>
+                    {breakActive ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 text-accent-primary" />}
+                    <span>{breakActive ? `Istirahat (${formatBreakTimer(breakSecondsLeft)})` : 'Mulai Istirahat (30m)'}</span>
                   </button>
                 </Tooltip>
               )}
 
               {myAttendance && myAttendance.timeOut === '--:--' && (
-                <Tooltip content="Selesaikan shift kerja hari ini dan catat jam kepulangan resmi">
+                <Tooltip 
+                  title="Presensi Pulang Shift"
+                  description="Selesaikan shift hari ini, mencatat total jam kerja dan lembur secara otomatis."
+                >
                   <button
                     onClick={handleClockOut}
-                    className="flex-1 py-3.5 px-4 rounded-2xl bg-surface-container-high border border-outline hover:bg-surface-container text-on-surface font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer font-display"
+                    className="flex-1 py-2.5 px-4 rounded-lg bg-surface-low hover:bg-surface-high border border-outline text-on-surface font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
                   >
-                    <Clock className="w-4 h-4 text-accent-primary" /> Pulang Shift (Clock-Out)
+                    <Clock className="w-3.5 h-3.5 text-accent-primary" /> Pulang Shift (Clock-Out)
                   </button>
                 </Tooltip>
               )}
 
               {myAttendance && myAttendance.timeOut !== '--:--' && (
-                <div className="flex-1 p-3 rounded-2xl bg-surface-container-lowest border border-outline flex items-center gap-3">
-                  <Check className="w-5 h-5 text-accent-primary" />
+                <div className="flex-1 p-3 rounded-xl bg-surface-container border border-outline flex items-center gap-3">
+                  <Check className="w-4 h-4 text-accent-primary" />
                   <div>
                     <p className="text-xs font-bold text-on-surface">Shift Selesai Hari Ini</p>
-                    <p className="text-[10px] text-on-surface-variant">Keluar: {myAttendance.timeOut} WIB</p>
+                    <p className="text-[10px] text-on-surface-variant font-mono">Keluar: {myAttendance.timeOut} WIB</p>
                   </div>
                 </div>
               )}
@@ -433,7 +449,7 @@ export function Attendance() {
           </div>
 
           {/* Quick Summary Card */}
-          <TiltCard className="glass-panel p-6 rounded-3xl border border-outline flex flex-col justify-between">
+          <div className="surface-card p-5 rounded-xl border border-outline flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 text-xs font-bold text-accent-primary uppercase tracking-wider mb-3">
                 <Compass className="w-4 h-4" /> Rangkuman Kinerja Saya
@@ -460,10 +476,10 @@ export function Attendance() {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-surface-container-lowest border border-outline text-[11px] text-on-surface-variant mt-4">
+            <div className="p-3 rounded-lg bg-surface-container-low border border-outline text-[11px] text-on-surface-variant mt-4">
               <p className="font-medium">Standar Kedai: Maksimal batas toleransi keterlambatan 10 menit dari jadwal pembukaan shift.</p>
             </div>
-          </TiltCard>
+          </div>
         </div>
       )}
 
@@ -471,19 +487,19 @@ export function Attendance() {
       {activeRole === 'manager' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* SVG Punctuality Gauge */}
-          <TiltCard className="glass-panel rounded-3xl p-6 border border-outline flex items-center gap-5">
+          <div className="surface-card p-5 border border-outline flex items-center gap-4">
             <Tooltip content={`Persentase staf yang hadir tepat waktu hari ini (${attendanceMetrics.tepatWaktu} dari ${attendanceMetrics.total} staf).`}>
-              <div className="relative w-24 h-24 flex items-center justify-center shrink-0 cursor-help">
+              <div className="relative w-20 h-20 flex items-center justify-center shrink-0 cursor-help">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                   <path
-                    className="text-surface-container"
+                    className="text-surface-high"
                     strokeWidth="3.5"
                     stroke="currentColor"
                     fill="none"
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
                   <path
-                    className="text-psy-safe transition-all duration-1000 ease-out"
+                    className="text-emerald-500 transition-all duration-700 ease-out"
                     strokeDasharray={`${attendanceMetrics.punctualityRate}, 100`}
                     strokeWidth="3.5"
                     strokeLinecap="round"
@@ -493,33 +509,40 @@ export function Attendance() {
                   />
                 </svg>
                 <div className="absolute flex flex-col items-center">
-                  <span className="text-xl font-bold font-mono text-on-surface">{attendanceMetrics.punctualityRate}%</span>
-                  <span className="text-[9px] text-on-surface-variant font-medium uppercase">On-Time</span>
+                  <span className="text-lg font-bold font-mono text-on-surface">{attendanceMetrics.punctualityRate}%</span>
+                  <span className="text-[9px] text-on-surface-variant font-medium">On-Time</span>
                 </div>
               </div>
             </Tooltip>
             <div>
-              <h4 className="font-bold text-sm text-on-surface font-display">Tingkat Ketepatan Waktu</h4>
-              <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
+              <div className="flex items-center gap-1.5">
+                <h4 className="font-semibold text-sm text-on-surface">Tingkat Ketepatan Waktu</h4>
+                <InfoTooltip 
+                  title="Formula Ketepatan Presensi"
+                  badge="SOP Kehadiran"
+                  description="Rasio staf yang clock-in tepat waktu dibandingkan total staf terjadwal hari ini. Toleransi keterlambatan maksimal 10 menit."
+                />
+              </div>
+              <p className="text-xs text-on-surface-variant mt-0.5 leading-snug">
                 {attendanceMetrics.tepatWaktu} dari {attendanceMetrics.total} staf hadir sesuai jadwal hari ini.
               </p>
             </div>
-          </TiltCard>
+          </div>
 
           {/* SVG Geofence Gauge */}
-          <TiltCard className="glass-panel rounded-3xl p-6 border border-outline flex items-center gap-5">
+          <div className="surface-card p-5 border border-outline flex items-center gap-4">
             <Tooltip content={`Tingkat kepatuhan presensi di dalam radius 100m ${currentBranch.name} (${attendanceMetrics.insideGeofence} dari ${attendanceMetrics.total} staf).`}>
-              <div className="relative w-24 h-24 flex items-center justify-center shrink-0 cursor-help">
+              <div className="relative w-20 h-20 flex items-center justify-center shrink-0 cursor-help">
                 <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                   <path
-                    className="text-surface-container"
+                    className="text-surface-high"
                     strokeWidth="3.5"
                     stroke="currentColor"
                     fill="none"
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                   />
                   <path
-                    className="text-accent-primary transition-all duration-1000 ease-out"
+                    className="text-sky-500 transition-all duration-700 ease-out"
                     strokeDasharray={`${attendanceMetrics.geofenceComplianceRate}, 100`}
                     strokeWidth="3.5"
                     strokeLinecap="round"
@@ -529,23 +552,36 @@ export function Attendance() {
                   />
                 </svg>
                 <div className="absolute flex flex-col items-center">
-                  <span className="text-xl font-bold font-mono text-on-surface">{attendanceMetrics.geofenceComplianceRate}%</span>
-                  <span className="text-[9px] text-on-surface-variant font-medium uppercase">HQ Valid</span>
+                  <span className="text-lg font-bold font-mono text-on-surface">{attendanceMetrics.geofenceComplianceRate}%</span>
+                  <span className="text-[9px] text-on-surface-variant font-medium">HQ Valid</span>
                 </div>
               </div>
             </Tooltip>
             <div>
-              <h4 className="font-bold text-sm text-on-surface font-display">Kepatuhan Geofence</h4>
-              <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
-                Verifikasi posisi GPS radius 100m Kedai Senopati.
+              <div className="flex items-center gap-1.5">
+                <h4 className="font-semibold text-sm text-on-surface">Kepatuhan Geofence</h4>
+                <InfoTooltip 
+                  title="Validasi Geofencing 100m"
+                  badge="GPS Haversine"
+                  description="Memastikan perangkat staf berada di dalam radius presisi titik koordinat cabang untuk mencegah titip absen."
+                />
+              </div>
+              <p className="text-xs text-on-surface-variant mt-0.5 leading-snug">
+                Verifikasi posisi GPS radius 100m {currentBranch.name}.
               </p>
             </div>
-          </TiltCard>
+          </div>
 
           {/* Live Floor Activity Snapshot */}
-          <TiltCard className="glass-panel rounded-3xl p-6 border border-outline flex flex-col justify-between">
+          <div className="surface-card p-5 border border-outline flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Status Kehadiran Hari Ini</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">Status Kehadiran Hari Ini</span>
+                <InfoTooltip 
+                  title="Distribusi Status Hari Ini"
+                  description="Ringkasan jumlah staf yang tepat waktu, terlambat, atau memiliki izin resmi."
+                />
+              </div>
               <Activity className="w-4 h-4 text-accent-primary" />
             </div>
             <div className="grid grid-cols-3 gap-2 text-center pt-2">
@@ -568,12 +604,12 @@ export function Attendance() {
                 </div>
               </Tooltip>
             </div>
-          </TiltCard>
+          </div>
         </div>
       )}
 
-      {/* Shift SOP & Operational Checklist (Deputy & 7shifts standard) */}
-      <div className="glass-panel p-6 rounded-3xl border border-outline">
+      {/* Shift SOP & Operational Checklist */}
+      <div className="surface-card p-5 border border-outline">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-5">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-accent-primary/10 text-accent-primary">
@@ -646,7 +682,7 @@ export function Attendance() {
               className={cn(
                 "p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 select-none",
                 task.completed 
-                  ? "bg-psy-safe-bg/30 border-psy-safe/30 text-on-surface" 
+                  ? "bg-psy-safe-bg border-psy-safe/30 text-on-surface" 
                   : "bg-surface-container-lowest border-outline hover:border-accent-primary/40 text-on-surface"
               )}
             >
@@ -662,8 +698,8 @@ export function Attendance() {
                   {task.title}
                 </p>
                 {task.completed && task.completedBy && (
-                  <p className="text-[10px] font-mono text-psy-safe-text">
-                    ✓ Dicek oleh {task.completedBy} • {task.completedAt}
+                  <p className="text-[10px] font-mono text-psy-safe-text flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3 inline shrink-0" /> Dicek oleh {task.completedBy} • {task.completedAt}
                   </p>
                 )}
               </div>
@@ -694,7 +730,7 @@ export function Attendance() {
               className={cn(
                 "p-4 rounded-2xl border text-xs space-y-2",
                 note.priority === 'urgent' 
-                  ? "bg-psy-warning-bg/40 border-psy-warning/30" 
+                  ? "bg-psy-warning-bg border-psy-warning/30" 
                   : "bg-surface-container-lowest border-outline"
               )}
             >
@@ -828,7 +864,7 @@ export function Attendance() {
                     const mood = employeeMoods[att.employeeId]
 
                     return (
-                      <tr key={att.id} className="hover:bg-surface-container-low/50 transition-colors">
+                      <tr key={att.id} className="hover:bg-surface-container-low transition-colors">
                         <td className="p-4 flex items-center gap-3">
                           <img src={att.avatar} alt={att.name} className="w-9 h-9 rounded-xl object-cover border border-outline" />
                           <div>
@@ -914,7 +950,7 @@ export function Attendance() {
                   const isDiscrepant = Math.abs(t.varianceMinutes) > 10
 
                   return (
-                    <tr key={t.id} className="hover:bg-surface-container-low/50 transition-colors">
+                    <tr key={t.id} className="hover:bg-surface-container-low transition-colors">
                       <td className="p-4 font-bold text-on-surface">{t.employeeName}</td>
                       <td className="p-4 font-mono text-on-surface-variant">{t.scheduledShift}</td>
                       <td className="p-4 font-mono text-on-surface">{t.actualClockIn} WIB</td>
@@ -984,7 +1020,7 @@ export function Attendance() {
                   const isTopPerformer = punctuality >= 97
 
                   return (
-                    <tr key={emp.id} className="hover:bg-surface-container-low/50 transition-colors">
+                    <tr key={emp.id} className="hover:bg-surface-container-low transition-colors">
                       <td className="p-4 flex items-center gap-3">
                         <img src={emp.avatar} alt={emp.name} className="w-9 h-9 rounded-xl object-cover border border-outline" />
                         <div>
@@ -1059,7 +1095,7 @@ export function Attendance() {
       {/* GPS Radar Modal */}
       {gpsModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setGpsModal(null)} />
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in" onClick={() => setGpsModal(null)} />
           <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-2">
@@ -1112,7 +1148,7 @@ export function Attendance() {
       {/* Active Attestation Clock-Out Modal (Deputy Standard) */}
       {showAttestationModal && activeEmployee && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-surface/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowAttestationModal(false)} />
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-in fade-in" onClick={() => setShowAttestationModal(false)} />
           <div className="relative glass-panel bg-surface rounded-3xl shadow-2xl border border-outline w-full max-w-lg p-6 md:p-8 animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-start border-b border-outline pb-4 mb-5">
               <div className="flex items-center gap-3">
@@ -1139,7 +1175,7 @@ export function Attendance() {
                 className={cn(
                   "p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3",
                   attestationForm.hadBreak 
-                    ? "bg-psy-safe-bg/60 border-psy-safe/40 text-on-surface" 
+                    ? "bg-psy-safe-bg border-psy-safe/40 text-on-surface" 
                     : "bg-surface-container-lowest border-outline text-on-surface-variant"
                 )}
               >
@@ -1166,7 +1202,7 @@ export function Attendance() {
                 className={cn(
                   "p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3",
                   attestationForm.isFit 
-                    ? "bg-psy-safe-bg/60 border-psy-safe/40 text-on-surface" 
+                    ? "bg-psy-safe-bg border-psy-safe/40 text-on-surface" 
                     : "bg-surface-container-lowest border-outline text-on-surface-variant"
                 )}
               >

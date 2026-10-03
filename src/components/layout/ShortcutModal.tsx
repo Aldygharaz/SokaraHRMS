@@ -56,7 +56,7 @@ export function ShortcutModal() {
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
       <div 
-        className="absolute inset-0 bg-surface/70 backdrop-blur-md animate-in fade-in"
+        className="absolute inset-0 bg-slate-950/60 backdrop-blur-md animate-in fade-in"
         onClick={() => setIsOpen(false)}
       />
       <div className="relative glass-panel bg-surface shadow-2xl rounded-3xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-outline p-6">
